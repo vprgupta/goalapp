@@ -1,0 +1,39 @@
+ERROR|COMPILE_TIME_ERROR|ARGUMENT_TYPE_NOT_ASSIGNABLE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\core\\theme\\app_theme.dart|49|18|288|The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'. 
+ERROR|COMPILE_TIME_ERROR|URI_DOES_NOT_EXIST|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|5|8|34|Target of URI doesn't exist: '../../core/theme/app_colors.dart'.
+ERROR|COMPILE_TIME_ERROR|URI_DOES_NOT_EXIST|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|6|8|39|Target of URI doesn't exist: '../../core/theme/app_text_styles.dart'.
+ERROR|COMPILE_TIME_ERROR|URI_DOES_NOT_EXIST|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|7|8|33|Target of URI doesn't exist: '../providers/goal_provider.dart'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|43|20|18|Undefined name 'activeGoalProvider'.
+ERROR|COMPILE_TIME_ERROR|INVALID_CONSTANT|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|98|24|9|Invalid constant value.
+ERROR|COMPILE_TIME_ERROR|NON_CONSTANT_LIST_ELEMENT|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|98|24|9|The values in a const list literal must be constants.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|98|24|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|109|18|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|117|18|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|128|14|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|INVALID_CONSTANT|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|132|55|9|Invalid constant value.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|132|55|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|151|22|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|153|41|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|155|45|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|169|35|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_GETTER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|173|56|14|The getter 'seedling_sharp' isn't defined for the type 'Icons'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|196|19|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|197|19|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|200|33|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|200|57|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|209|25|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|210|25|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|214|24|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|216|25|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|217|25|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|235|37|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|239|24|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|244|24|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|245|38|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|254|31|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|255|33|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|256|25|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|259|27|9|Undefined name 'AppColors'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|272|35|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|273|36|13|Undefined name 'AppTextStyles'.
+ERROR|COMPILE_TIME_ERROR|INVALID_CONSTANT|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|294|26|9|Invalid constant value.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\onboarding\\goal_setup_screen.dart|294|26|9|Undefined name 'AppColors'.

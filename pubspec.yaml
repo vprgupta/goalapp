@@ -1,0 +1,55 @@
+name: goalapp
+description: A self-adapting daily learning engine with spaced repetition.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Local Database
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
+
+  # Navigation
+  go_router: ^14.2.7
+
+  # Animations
+  flutter_animate: ^4.5.0
+
+  # Utilities
+  uuid: ^4.4.0
+  intl: ^0.19.0
+  youtube_explode_dart: ^2.2.2
+  url_launcher: ^6.3.0
+  cached_network_image: ^3.3.1
+
+  # Icons
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+  build_runner: ^2.4.9
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-Regular.ttf
+        - asset: assets/fonts/Outfit-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Outfit-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Outfit-Bold.ttf
+          weight: 700
