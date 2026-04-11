@@ -23,12 +23,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _onTaskComplete(TaskModel task, {bool? recallCorrect}) async {
     List<String>? subTopics;
 
-    // Reflection Phase for Learn tasks
+    // Quick Reflection is ONLY for Learn tasks (not Revise/Recall sessions)
     if (task.isLearn && !task.isDone) {
       final topic = ref.read(goalRepositoryProvider).getTopic(task.topicId);
       final result = await showDialog<List<String>>(
         context: context,
-        builder: (ctx) => KeyConceptsDialog(topicName: topic?.name ?? task.title),
+        builder: (ctx) => KeyConceptsDialog(
+          topicName: topic?.name ?? task.title,
+          initialConcepts: topic?.subTopics ?? [],
+          isRevision: false,
+        ),
       );
       if (result != null) {
         subTopics = result;
@@ -110,6 +114,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               task: task,
                               topicName: topic?.name ?? task.title,
                               thumbnailUrl: topic?.thumbnailUrl,
+                              subTopics: topic?.subTopics ?? [],
                               isCompleted: task.isDone,
                               onComplete: ({recallCorrect}) =>
                                   _onTaskComplete(task, recallCorrect: recallCorrect),

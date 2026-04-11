@@ -50,6 +50,7 @@ class TopicGenerator {
       final String fullTitle = item['title'] as String;
       final int videoDurationSec = item['duration_sec'] as int;
       final int videoMinutes = (videoDurationSec / 60).ceil();
+      final List<String> subTopics = (item['subtopics'] as List<dynamic>?)?.map((s) => s.toString()).toList() ?? [];
       final String? videoId = item['video_id'] as String?;
       final String? thumbUrl = item['thumbnail_url'] as String?;
 
@@ -69,6 +70,7 @@ class TopicGenerator {
           videoId: videoId,
           thumbnailUrl: thumbUrl,
           startSeconds: 0,
+          subTopics: subTopics,
         ));
       } else {
         // LONG VIDEO: Split proportionally based on global average
@@ -90,6 +92,7 @@ class TopicGenerator {
             videoId: videoId,
             thumbnailUrl: thumbUrl,
             startSeconds: (p - 1) * minutesPerPart * 60,
+            subTopics: p == 1 ? subTopics : [], // Only add subtopics to first part
           ));
         }
       }

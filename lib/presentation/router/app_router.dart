@@ -65,8 +65,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/recall',
       builder: (ctx, state) {
-        final task = state.extra as TaskModel;
-        return RecallScreen(task: task);
+        final extra = state.extra;
+        // Support both old-style (TaskModel directly) and new-style (map with task + subTopics)
+        if (extra is Map) {
+          final task = extra['task'] as TaskModel;
+          final subTopics = (extra['subTopics'] as List?)?.cast<String>() ?? [];
+          final revisionCount = (extra['revisionCount'] as int?) ?? 0;
+          return RecallScreen(task: task, subTopics: subTopics, revisionCount: revisionCount);
+        }
+        // Fallback: plain TaskModel (backwards compat)
+        return RecallScreen(task: extra as TaskModel);
       },
     ),
     GoRoute(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../providers/goal_provider.dart';
 import '../../../domain/services/youtube_service.dart';
+import '../../../domain/services/ai_service.dart';
 
 class GoalSetupScreen extends ConsumerStatefulWidget {
   const GoalSetupScreen({super.key});
@@ -18,6 +20,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
   final _controller = TextEditingController();
   final _urlController = TextEditingController();
   final _ytService = YouTubeService();
+  final _aiService = AiService();
 
   String _level = 'beginner';
   double _days = 14;
@@ -25,6 +28,18 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
   bool _isYoutubeSource = false;
   bool _isFetching = false;
   List<Map<String, dynamic>>? _fetchedMetadata;
+
+  int _currentTipIndex = 0;
+  Timer? _tipTimer;
+  final List<String> _loadingTips = [
+    "Spaced repetition can improve long-term retention by up to 200%.",
+    "Short study sessions (25-45 mins) are more effective than marathon cramming.",
+    "The Feynman Technique: Teaching a concept accelerates your own mastery.",
+    "Consistency is king. 15 minutes daily beats 4 hours once a week.",
+    "Active Recall is the #1 science-backed method for durable learning.",
+    "Sleep is when your brain actually encodes the day's new memories.",
+    "Interleaving: Mixing different topics prevents 'learning plateaus'."
+  ];
 
   final List<String> _suggestions = [
     'Learn Java',
@@ -42,7 +57,23 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
     _controller.dispose();
     _urlController.dispose();
     _ytService.dispose();
+    _tipTimer?.cancel();
     super.dispose();
+  }
+
+  void _startTipTimer() {
+    _tipTimer?.cancel();
+    setState(() => _currentTipIndex = 0);
+    _tipTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        setState(() => _currentTipIndex = (_currentTipIndex + 1) % _loadingTips.length);
+      }
+    });
+  }
+
+  void _stopTipTimer() {
+    _tipTimer?.cancel();
+    _tipTimer = null;
   }
 
   Future<void> _fetchPlaylist() async {
@@ -50,14 +81,49 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
     if (url.isEmpty) return;
 
     setState(() => _isFetching = true);
+    _startTipTimer();
     try {
       final metadata = await _ytService.fetchPlaylistMetadata(url);
       setState(() {
         _fetchedMetadata = metadata;
         _isFetching = false;
+        _stopTipTimer();
       });
     } catch (e) {
-      setState(() => _isFetching = false);
+      setState(() {
+        _isFetching = false;
+        _stopTipTimer();
+      });
+    }
+  }
+  
+  Future<void> _generateAiSyllabus() async {
+    final goal = _controller.text.trim();
+    if (goal.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a goal first')),
+      );
+      return;
+    }
+
+    setState(() => _isFetching = true);
+    _startTipTimer();
+    try {
+      final metadata = await _aiService.generateSyllabus(
+        goal: goal,
+        level: _level,
+        days: _days.round(),
+      );
+      setState(() {
+        _fetchedMetadata = metadata;
+        _isFetching = false;
+        _stopTipTimer();
+      });
+    } catch (e) {
+      setState(() {
+        _isFetching = false;
+        _stopTipTimer();
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString())),
@@ -79,6 +145,12 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fetch the playlist syllabus first')),
       );
+      return;
+    }
+
+    if (!_isYoutubeSource && _fetchedMetadata == null) {
+      // First time clicking while AI source is active: Generate syllabus
+      await _generateAiSyllabus();
       return;
     }
 
@@ -104,30 +176,137 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                _buildHeader(),
-                const SizedBox(height: 32),
-                _buildSourceSelector(),
-                const SizedBox(height: 32),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: _isYoutubeSource ? _buildYoutubeInput() : _buildGoalInputSection(),
-                ),
-                const SizedBox(height: 36),
-                _buildLevelPicker(),
-                const SizedBox(height: 36),
-                _buildDurationSlider(),
-                const SizedBox(height: 48),
-                _buildCTA(),
-                const SizedBox(height: 40),
-              ],
-            ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 500),
+            child: _isFetching 
+                ? _buildLoadingState() 
+                : SingleChildScrollView(
+                    key: const ValueKey('form'),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        _buildHeader(),
+                        const SizedBox(height: 32),
+                        _buildSourceSelector(),
+                        const SizedBox(height: 32),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _isYoutubeSource ? _buildYoutubeInput() : _buildGoalInputSection(),
+                        ),
+                        const SizedBox(height: 36),
+                        _buildLevelPicker(),
+                        const SizedBox(height: 36),
+                        _buildDurationSlider(),
+                        const SizedBox(height: 48),
+                        _buildCTA(),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      key: const ValueKey('loading'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppColors.accentAmber.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                size: 48,
+                color: AppColors.accentAmber,
+              ),
+            )
+            .animate(onPlay: (controller) => controller.repeat())
+            .shimmer(duration: 2.seconds, color: AppColors.accentAmber.withOpacity(0.3))
+            .scale(begin: const Offset(1, 1), end: const Offset(1.1, 1.1), duration: 1.seconds, curve: Curves.easeInOut)
+            .then()
+            .scale(begin: const Offset(1.1, 1.1), end: const Offset(1, 1), duration: 1.seconds, curve: Curves.easeInOut),
+            
+            const SizedBox(height: 40),
+            
+            Text(
+              'Architecting your roadmap...',
+              style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
+              textAlign: TextAlign.center,
+            ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0),
+            
+            const SizedBox(height: 12),
+            
+            Text(
+              'AI is optimizing for your ${_level.toLowerCase()} level.',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted),
+            ).animate().fadeIn(delay: 300.ms, duration: 600.ms),
+            
+            const SizedBox(height: 60),
+
+            // Tips Carousel
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundElevated,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.borderCard),
+              ),
+              child: Column(
+                children: [
+                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.lightbulb_outline_rounded, size: 16, color: AppColors.accentAmber),
+                      const SizedBox(width: 8),
+                      Text(
+                        'LEARNING TIP',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.accentAmber,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    child: Text(
+                      _loadingTips[_currentTipIndex],
+                      key: ValueKey(_currentTipIndex),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textPrimary,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 600.ms, duration: 800.ms).scale(begin: const Offset(0.95, 0.95)),
+            
+            const SizedBox(height: 48),
+            
+            const SizedBox(
+              width: 140,
+              child: LinearProgressIndicator(
+                backgroundColor: AppColors.backgroundDark,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentAmber),
+              ),
+            ).animate().fadeIn(delay: 1.seconds),
+          ],
         ),
       ),
     );
@@ -184,7 +363,11 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       key: const ValueKey('curated'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildGoalInput(),
+         _buildGoalInput(),
+        if (_fetchedMetadata != null) ...[
+          const SizedBox(height: 24),
+          _buildTopicsPreview(),
+        ],
         const SizedBox(height: 24),
         _buildSuggestions(),
       ],
@@ -300,34 +483,68 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                 final videoMinutes = ((item['duration_sec'] as int) / 60).ceil();
                 final splitParts = (videoMinutes / dynamicMaxMinutes).ceil();
                 final isSplit = splitParts > 1;
+                final subtopics = item['subtopics'] as List<dynamic>? ?? [];
 
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          '${i + 1}. ${item['title']}',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${i + 1}. ${item['title']}',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isSplit ? AppColors.accentAmber.withOpacity(0.1) : AppColors.backgroundDark,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isSplit ? '$splitParts Parts' : formatTag(Duration(seconds: item['duration_sec'] as int)),
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: isSplit ? AppColors.accentAmber : AppColors.textMuted,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isSplit ? AppColors.accentAmber.withOpacity(0.1) : AppColors.backgroundDark,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          isSplit ? '$splitParts Parts' : formatTag(Duration(seconds: item['duration_sec'] as int)),
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: isSplit ? AppColors.accentAmber : AppColors.textMuted,
-                            fontSize: 10,
+                      if (subtopics.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, top: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: subtopics.take(3).map((sub) => Padding(
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('• ', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
+                                  Expanded(
+                                    child: Text(
+                                      sub.toString(),
+                                      style: AppTextStyles.labelSmall.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )).toList(),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 );
@@ -572,7 +789,12 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                 children: [
                   const Text('Generate My Plan'),
                   const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                  Icon(
+                    _fetchedMetadata == null || _isYoutubeSource 
+                        ? Icons.bolt_rounded 
+                        : Icons.arrow_forward_rounded, 
+                    size: 18
+                  ),
                 ],
               ),
       ),

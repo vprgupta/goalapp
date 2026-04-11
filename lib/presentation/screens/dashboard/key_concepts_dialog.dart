@@ -4,8 +4,15 @@ import '../../../core/theme/app_text_styles.dart';
 
 class KeyConceptsDialog extends StatefulWidget {
   final String topicName;
+  final List<String> initialConcepts;
+  final bool isRevision;
 
-  const KeyConceptsDialog({super.key, required this.topicName});
+  const KeyConceptsDialog({
+    super.key, 
+    required this.topicName,
+    this.initialConcepts = const [],
+    this.isRevision = false,
+  });
 
   @override
   State<KeyConceptsDialog> createState() => _KeyConceptsDialogState();
@@ -13,7 +20,13 @@ class KeyConceptsDialog extends StatefulWidget {
 
 class _KeyConceptsDialogState extends State<KeyConceptsDialog> {
   final TextEditingController _controller = TextEditingController();
-  final List<String> _concepts = [];
+  late List<String> _concepts;
+
+  @override
+  void initState() {
+    super.initState();
+    _concepts = List.from(widget.initialConcepts);
+  }
 
   void _addConcept() {
     final text = _controller.text.trim();
@@ -50,7 +63,7 @@ class _KeyConceptsDialogState extends State<KeyConceptsDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Quick Reflection',
+                    widget.isRevision ? 'Refine Key Topics' : 'Quick Reflection',
                     style: AppTextStyles.headlineMedium,
                   ),
                 ),
@@ -58,7 +71,9 @@ class _KeyConceptsDialogState extends State<KeyConceptsDialog> {
             ),
             const SizedBox(height: 16),
             Text(
-              'What are the 2-3 most important concepts you just learned in "${widget.topicName}"?',
+              widget.isRevision
+                  ? 'Did you discover any new key concepts or details while reviewing "${widget.topicName}"?'
+                  : 'What are the 2-3 most important concepts you just learned in "${widget.topicName}"?',
               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),

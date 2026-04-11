@@ -11,6 +11,7 @@ class TaskCardWidget extends StatefulWidget {
   final TaskModel task;
   final String topicName;
   final String? thumbnailUrl;
+  final List<String> subTopics;
   final void Function({bool? recallCorrect}) onComplete;
   final bool isCompleted;
 
@@ -19,6 +20,7 @@ class TaskCardWidget extends StatefulWidget {
     required this.task,
     required this.topicName,
     this.thumbnailUrl,
+    this.subTopics = const [],
     required this.onComplete,
     required this.isCompleted,
   });
@@ -54,8 +56,12 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
     bool? recallResult;
 
     if (widget.task.isRevise && widget.task.recallPrompt != null) {
-      // Navigate to recall screen for revision tasks
-      final result = await context.push('/recall', extra: widget.task);
+      // Navigate to recall screen, passing subTopics and revisionCount directly
+      final result = await context.push('/recall', extra: {
+        'task': widget.task,
+        'subTopics': widget.subTopics,
+        'revisionCount': widget.subTopics.isNotEmpty ? widget.subTopics.length : 0,
+      });
       
       // If user popped without answer (null), don't complete
       if (result == null || result is! Map || !result.containsKey('correct')) return;
@@ -175,7 +181,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   }
 
   Widget _buildYouTubeButton() {
-    if (widget.task.videoId == null) return const SizedBox.shrink();
+    if (widget.task.videoId == null || widget.task.isRevise) return const SizedBox.shrink();
     
     return GestureDetector(
       onTap: _launchYouTube,
@@ -246,21 +252,89 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
           overflow: TextOverflow.ellipsis,
         ),
         _buildYouTubeButton(),
+        if (widget.subTopics.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _buildSubTopicChips(),
+        ],
         if (widget.task.isRevise) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Row(
             children: [
               Icon(Icons.arrow_circle_right_outlined,
-                  size: 12, color: AppColors.accentAmber),
-              const SizedBox(width: 4),
+                  size: 13, color: AppColors.accentAmber),
+              const SizedBox(width: 5),
               Text(
-                'Tap to recall',
+                'Focus on Recall',
                 style:
-                    AppTextStyles.bodySmall.copyWith(color: AppColors.accentAmber),
+                    AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.accentAmber,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ],
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildSubTopicChips() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, size: 10, color: AppColors.accentTeal.withOpacity(0.8)),
+            const SizedBox(width: 5),
+            Text(
+              'KEY CONCEPTS',
+              style: AppTextStyles.labelSmall.copyWith(
+                fontSize: 8,
+                letterSpacing: 0.5,
+                color: AppColors.textMuted,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: widget.subTopics.map((topic) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundElevated,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderCard),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle_rounded, 
+                      size: 10, color: AppColors.accentGreen),
+                  const SizedBox(width: 6),
+                  Text(
+                    topic,
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textPrimary.withOpacity(0.9),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
       ],
     );
   }
