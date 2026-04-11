@@ -29,11 +29,26 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
   List<Map<String, String>> _resources = [];
   TopicModel? _topic;
 
+  Map<String, dynamic> get _masteryData {
+    final masteryRes = _resources.firstWhere(
+      (r) => r['type'] == 'mastery_hub',
+      orElse: () => {},
+    );
+    if (masteryRes.isEmpty) return {};
+    return jsonDecode(masteryRes['description']!);
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData({bool forceRefresh = false}) async {
@@ -77,40 +92,16 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  List<Map<String, String>> _getResourcesByType(String type) {
-    return _resources.where((r) => r['type'] == type).toList();
-  }
-
-  Future<void> _launchUrl(String? urlString) async {
+  void _launchUrl(String? urlString) async {
     if (urlString == null || urlString.isEmpty) return;
     final Uri url = Uri.parse(urlString);
     try {
-      // First try opening in an external app (browser/youtube)
-      final launched = await launchUrl(
-        url,
-        mode: LaunchMode.externalApplication,
-      );
-      
-      // If external fails, try opening inside the app as a fallback
+      final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
       if (!launched) {
-        await launchUrl(
-          url,
-          mode: LaunchMode.inAppBrowserView,
-        );
+        await launchUrl(url, mode: LaunchMode.inAppBrowserView);
       }
     } catch (e) {
       debugPrint('Could not launch URL: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open link: $urlString')),
-        );
-      }
     }
   }
 
@@ -120,231 +111,282 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            backgroundColor: AppColors.backgroundDark,
-            expandedHeight: 200,
-            floating: false,
-            pinned: true,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
-              onPressed: () => context.pop(),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
-                onPressed: () => _loadData(forceRefresh: true),
-                tooltip: 'Refresh Resources',
-              ),
-              const SizedBox(width: 8),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.accentAmber.withOpacity(0.12),
+              AppColors.backgroundDark,
+              AppColors.backgroundDark,
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      AppColors.accentAmber.withOpacity(0.15),
-                      AppColors.backgroundDark,
-                    ],
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.accentAmber.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _topic!.moduleName ?? 'Core Module',
-                              style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentAmber),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          if (_topic!.isBoss)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.accentRed.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'BOSS NODE',
-                                style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentRed),
-                              ),
-                            ),
-                        ],
-                      ).animate().fadeIn().slideX(begin: -0.1),
-                      const SizedBox(height: 12),
-                      Text(
-                        _topic!.name,
-                        style: AppTextStyles.headlineLarge.copyWith(fontSize: 28),
-                      ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            stops: const [0.0, 0.4, 1.0],
           ),
-          SliverToBoxAdapter(
-            child: Container(
-              color: AppColors.backgroundDark,
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                indicatorColor: AppColors.accentAmber,
-                labelColor: AppColors.accentAmber,
-                unselectedLabelColor: AppColors.textMuted,
-                tabs: const [
-                  Tab(icon: Icon(Icons.play_circle_fill_rounded), text: 'Videos'),
-                  Tab(icon: Icon(Icons.article_rounded), text: 'Articles'),
-                  Tab(icon: Icon(Icons.image_rounded), text: 'Visuals'),
-                  Tab(icon: Icon(Icons.headphones_rounded), text: 'Audio'),
-                  Tab(icon: Icon(Icons.code_rounded), text: 'Interactive'),
-                  Tab(icon: Icon(Icons.quiz_rounded), text: 'Practice'),
-                ],
+        ),
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverAppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              expandedHeight: 200,
+              pinned: true,
+              forceElevated: innerBoxIsScrolled,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+                onPressed: () => context.pop(),
               ),
-            ),
-          ),
-        ],
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildResourceList('video'),
-            _buildResourceList('article'),
-            _buildResourceList('visual'),
-            _buildResourceList('audio'),
-            _buildResourceList('interactive'),
-            _buildPracticeList(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResourceList(String type) {
-    if (_isLoading) {
-      return _buildShimmer();
-    }
-
-    final list = _getResourcesByType(type);
-
-    if (list.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off_rounded, size: 64, color: AppColors.textMuted.withOpacity(0.3)),
-            const SizedBox(height: 16),
-            Text(
-              'No ${type}s found yet',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        final res = list[index];
-        return _buildResourceCard(res)
-            .animate()
-            .fadeIn(delay: (index * 100).ms)
-            .slideY(begin: 0.1, end: 0);
-      },
-    );
-  }
-
-  Widget _buildResourceCard(Map<String, String> res) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderCard),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _launchUrl(res['url']),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+                  onPressed: () => _loadData(forceRefresh: true),
+                  tooltip: 'Refresh Mastery Hub',
+                ),
+                const SizedBox(width: 8),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundDark,
-                        borderRadius: BorderRadius.circular(6),
+                    Positioned(
+                      right: -30,
+                      bottom: 0,
+                      child: Icon(
+                        _topic!.isBoss ? Icons.gite_rounded : Icons.menu_book_rounded,
+                        size: 160,
+                        color: AppColors.accentAmber.withOpacity(0.04),
                       ),
-                      child: Text(
-                        res['source']?.toUpperCase() ?? 'WEB',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.accentAmber,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                    ),
+                    SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 60),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentAmber.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _topic!.moduleName?.toUpperCase() ?? 'CORE MODULE',
+                                    style: AppTextStyles.labelSmall.copyWith(
+                                      color: AppColors.accentAmber,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 9,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
+                                if (_topic!.isBoss) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentRed.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'BOSS NODE',
+                                      style: AppTextStyles.labelSmall.copyWith(
+                                        color: AppColors.accentRed,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 9,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ).animate().fadeIn().slideX(begin: -0.1),
+                            const SizedBox(height: 12),
+                            Text(
+                              _topic!.name,
+                              style: AppTextStyles.headlineMedium.copyWith(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ).animate().fadeIn(delay: 100.ms).slideX(begin: -0.05),
+                          ],
                         ),
                       ),
                     ),
-                    const Spacer(),
-                    const Icon(Icons.open_in_new_rounded, size: 16, color: AppColors.textMuted),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  res['title'] ?? 'Resource',
-                  style: AppTextStyles.titleMedium,
-                ),
-                if (res['description']?.isNotEmpty ?? false) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    res['description']!,
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(48),
+                child: Container(
+                  color: Colors.transparent,
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    indicatorColor: AppColors.accentAmber,
+                    labelColor: AppColors.accentAmber,
+                    unselectedLabelColor: AppColors.textMuted,
+                    indicatorWeight: 3,
+                    dividerColor: Colors.transparent,
+                    labelStyle: AppTextStyles.labelSmall.copyWith(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    tabs: const [
+                      Tab(text: 'Videos'),
+                      Tab(text: 'Theory'),
+                      Tab(text: 'Visuals'),
+                      Tab(text: 'Practice'),
+                      Tab(text: 'Sandbox'),
+                    ],
                   ),
-                ],
-              ],
+                ),
+              ),
             ),
+          ],
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildResourceList('video'),
+              _buildResourceList('article'),
+              _buildResourceList('visual'),
+              _buildPracticeTab(),
+              _buildResourceList('interactive'),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildShimmer() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: 4,
-      itemBuilder: (context, index) => Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        height: 120,
-        decoration: BoxDecoration(
-          color: AppColors.backgroundElevated.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.05)),
+  Widget _buildIntuitionCard() {
+    final synopsis = _masteryData['synopsis'] ?? 'Generating intuition for this topic...';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 24, 20, 10),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundElevated,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.accentAmber.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.lightbulb_rounded, color: AppColors.accentAmber, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'THE INTUITION',
+                style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentAmber, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            synopsis,
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9), height: 1.6, fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    ).animate().fadeIn().slideY(begin: 0.1);
+  }
+
+  Widget _buildPitfallsCard() {
+    final pitfalls = List<String>.from(_masteryData['pitfalls'] ?? []);
+    if (pitfalls.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.accentRed.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.accentRed.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: AppColors.accentRed, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'EXAM PITFALLS',
+                style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentRed, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...pitfalls.map((p) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• ', style: TextStyle(color: AppColors.accentRed, fontWeight: FontWeight.bold, fontSize: 18)),
+                    Expanded(
+                      child: Text(p, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70, height: 1.4)),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    ).animate().fadeIn().slideY(begin: 0.1);
+  }
+
+  Widget _buildRevisionSheet() {
+    final cheatSheet = _masteryData['revision_sheet'] ?? '';
+    if (cheatSheet.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFD43B).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: const Color(0xFFFFD43B).withOpacity(0.3), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFFD43B), size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'FINAL REVISION SHEET',
+                style: AppTextStyles.labelSmall.copyWith(color: const Color(0xFFFFD43B), fontWeight: FontWeight.w900, letterSpacing: 2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            cheatSheet,
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white, height: 1.7, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95));
+  }
+
+  Widget _buildOverviewTab() {
+    if (_isLoading) return _buildShimmer();
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      children: [
+        _buildIntuitionCard(),
+        _buildPitfallsCard(),
+        _buildRevisionSheet(),
+        const SizedBox(height: 40),
+      ],
     );
   }
 
-  Widget _buildPracticeList() {
+  Widget _buildPracticeTab() {
     if (_isLoading) return _buildShimmer();
 
     final practiceSetResource = _resources.firstWhere(
@@ -372,7 +414,7 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
     final List<dynamic> questions = jsonDecode(practiceSetResource['description']!);
 
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
       itemCount: questions.length,
       itemBuilder: (context, index) {
         return PracticeExerciseCard(
@@ -380,6 +422,113 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
           index: index,
         ).animate().fadeIn(delay: (index * 150).ms).slideX(begin: 0.1, end: 0);
       },
+    );
+  }
+
+  Widget _buildResourceList(String type) {
+    if (_isLoading) return _buildShimmer();
+
+    final list = _resources.where((r) => r['type'] == type).toList();
+
+    if (list.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, size: 64, color: AppColors.textMuted.withOpacity(0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'No ${type}s found yet',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+      itemCount: list.length,
+      itemBuilder: (context, index) {
+        final res = list[index];
+        return _buildResourceCard(res, AppColors.accentAmber)
+            .animate()
+            .fadeIn(delay: (index * 100).ms)
+            .slideY(begin: 0.1, end: 0);
+      },
+    );
+  }
+
+  Widget _buildResourceCard(Map<String, String> res, Color themeColor) {
+    return GestureDetector(
+      onTap: () => _launchUrl(res['url']),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.borderCard),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(_getResourceIcon(res['type'] ?? ''), color: themeColor, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    res['title'] ?? 'Resource',
+                    style: AppTextStyles.titleMedium.copyWith(fontSize: 15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    res['source'] ?? 'Web',
+                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.open_in_new_rounded, size: 16, color: Colors.white24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getResourceIcon(String type) {
+    switch (type) {
+      case 'video': return Icons.play_circle_fill_rounded;
+      case 'article': return Icons.description_rounded;
+      case 'visual': return Icons.image_rounded;
+      case 'audio': return Icons.headphones_rounded;
+      case 'interactive': return Icons.code_rounded;
+      default: return Icons.link_rounded;
+    }
+  }
+
+  Widget _buildShimmer() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: 4,
+      itemBuilder: (context, index) => Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        height: 120,
+        decoration: BoxDecoration(
+          color: AppColors.backgroundElevated.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.05)),
     );
   }
 }

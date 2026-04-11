@@ -11,21 +11,19 @@ class ResourceService {
     required String level,
   }) async {
     final systemPrompt = """
-You are an Expert Learning Librarian. Your task is to find the absolute BEST learning resources for a specific topic.
+You are an Expert Learning Librarian. Your task is to find the absolute BEST learning resources and create a 'Topper-Level' mastery dashboard for a specific topic.
 
 TOPIC: $topicName
 OVERALL GOAL: $goalName
 LEARNER LEVEL: $level
 
 BEHAVIOR:
-- Provide a curated list of high-quality resources.
-- Include a variety of types: video, article, visual (cheatsheets/diagrams), audio (podcasts/talks), and interactive (exercises/playgrounds).
-- Return EVERY high-quality resource you can find, aiming for at least 3-5 diverse options per category. 
-- The user wants the 'Top 5' best resources across all categories as a minimum, but more is better if they are high-quality.
-- Favor official documentation, high-rated tutorials (FreeCodeCamp, Traversy Media, etc.), and interactive tools.
+1. CURATE: Find high-quality resources (video, article, visual, audio, interactive).
+2. MASTER: Generate deep pedagogical insights that help a student master the topic like a topper.
 
 JSON SCHEMA:
-Return a JSON object with two keys: 'resources' (list) and 'practice' (list).
+Return a JSON object with THREE keys: 'resources', 'practice', and 'mastery'.
+
 {
   "resources": [
     {
@@ -38,32 +36,26 @@ Return a JSON object with two keys: 'resources' (list) and 'practice' (list).
   ],
   "practice": [
     {
-      "type": "mcq",
-      "question": "Famous MCQ question",
-      "options": ["A", "B", "C", "D"],
-      "correct_index": 0,
-      "explanation": "Why it is correct"
-    },
-    {
-      "type": "code",
-      "question": "Coding challenge or logic puzzle (e.g. LeetCode style)",
-      "starter_code": "Snippet to start with",
-      "solution": "Ideal code solution",
-      "explanation": "Logic walkthrough"
-    },
-    {
-      "type": "theory",
-      "question": "Standard exam theoretical question (e.g. 'Describe how...')",
-      "solution": "Comprehensive ideal answer",
-      "explanation": "Key points for marks"
+      "type": "mcq|code|theory",
+      "question": "...",
+      "options": ["A", "B", "C", "D"], // for mcq
+      "correct_index": 0, // for mcq
+      "starter_code": "...", // for code
+      "solution": "...", 
+      "explanation": "..."
     }
-  ]
+  ],
+  "mastery": {
+    "synopsis": "A 2-sentence snapshot that builds instant intuition for the topic.",
+    "pitfalls": ["Common trap 1", "Common trap 2", "Common trap 3"],
+    "revision_sheet": "A concise, topper-level summary of key concepts, formulas, or principles."
+  }
 }
 
-Try to find real, famous, or official resources. Mimetize the ACTUAL exam format of the field (e.g. Coding for Tech, Case Study for MBA, MCQ for Medical).
+Focus on providing 'Topper IQ'—insights that go beyond just facts.
 """;
 
-    final modelName = 'gemini-flash-latest';
+    final modelName = 'gemini-1.5-flash';
     
     try {
       final url = Uri.parse('$_baseUrl/models/$modelName:generateContent?key=$_apiKey');
@@ -105,6 +97,7 @@ Try to find real, famous, or official resources. Mimetize the ACTUAL exam format
       final Map<String, dynamic> decoded = jsonDecode(cleanedText.trim());
       final List<dynamic> rawResources = decoded['resources'] ?? [];
       final List<dynamic> rawPractice = decoded['practice'] ?? [];
+      final Map<String, dynamic> rawMastery = decoded['mastery'] ?? {};
       
       final List<Map<String, String>> resources = rawResources.map((r) => {
         'type': r['type']?.toString() ?? 'article',
@@ -121,6 +114,16 @@ Try to find real, famous, or official resources. Mimetize the ACTUAL exam format
           'url': '',
           'description': jsonEncode(rawPractice),
           'source': 'AI Librarian',
+        });
+      }
+
+      if (rawMastery.isNotEmpty) {
+        resources.add({
+          'type': 'mastery_hub',
+          'title': 'Mastery Snapshot',
+          'url': '',
+          'description': jsonEncode(rawMastery),
+          'source': 'AI Topper IQ',
         });
       }
 
