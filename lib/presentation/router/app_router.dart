@@ -5,6 +5,7 @@ import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/goal_list/goal_list_screen.dart';
 import '../screens/task/recall_screen.dart';
 import '../screens/stats/stats_screen.dart';
+import '../screens/task/topic_resource_screen.dart';
 import '../../data/models/task_model.dart';
 import '../../data/local/hive_service.dart';
 import '../../data/models/goal_model.dart';
@@ -80,6 +81,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     GoRoute(
       path: '/stats',
       builder: (ctx, state) => const StatsScreen(),
+    ),
+    GoRoute(
+      path: '/topic-resources/:topicId',
+      builder: (ctx, state) {
+        final topicId = state.pathParameters['topicId']!;
+        return TopicResourceScreen(topicId: topicId);
+      },
     ),
     GoRoute(
       path: '/complete',

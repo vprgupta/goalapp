@@ -82,11 +82,13 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       _currentTipIndex = 0;
       _currentStatusIndex = 0;
     });
-    
+
     _tipTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (mounted) setState(() => _currentTipIndex = (_currentTipIndex + 1) % _loadingTips.length);
+      if (mounted)
+        setState(() =>
+            _currentTipIndex = (_currentTipIndex + 1) % _loadingTips.length);
     });
-    
+
     _statusTimer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
       if (mounted && _currentStatusIndex < _loadingStatuses.length - 1) {
         setState(() => _currentStatusIndex++);
@@ -121,7 +123,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       });
     }
   }
-  
+
   Future<void> _generateAiSyllabus() async {
     final goal = _controller.text.trim();
     if (goal.isEmpty) {
@@ -166,9 +168,11 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       return;
     }
 
-    if (_isYoutubeSource && (_fetchedMetadata == null || _fetchedMetadata!.isEmpty)) {
+    if (_isYoutubeSource &&
+        (_fetchedMetadata == null || _fetchedMetadata!.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fetch the playlist syllabus first')),
+        const SnackBar(
+            content: Text('Please fetch the playlist syllabus first')),
       );
       return;
     }
@@ -203,11 +207,12 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
         child: SafeArea(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 500),
-            child: _isFetching 
-                ? _buildLoadingState() 
+            child: _isFetching
+                ? _buildLoadingState()
                 : SingleChildScrollView(
                     key: const ValueKey('form'),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -218,7 +223,9 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                         const SizedBox(height: 32),
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
-                          child: _isYoutubeSource ? _buildYoutubeInput() : _buildGoalInputSection(),
+                          child: _isYoutubeSource
+                              ? _buildYoutubeInput()
+                              : _buildGoalInputSection(),
                         ),
                         const SizedBox(height: 36),
                         _buildLevelPicker(),
@@ -262,17 +269,23 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                     ),
                   ),
                 )
-                .animate(onPlay: (controller) => controller.repeat())
-                .scale(begin: const Offset(1, 1), end: const Offset(1.3, 1.3), duration: 2.seconds, curve: Curves.easeInOut)
-                .fadeOut(duration: 2.seconds, curve: Curves.easeInOut),
-                
+                    .animate(onPlay: (controller) => controller.repeat())
+                    .scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.3, 1.3),
+                        duration: 2.seconds,
+                        curve: Curves.easeInOut)
+                    .fadeOut(duration: 2.seconds, curve: Curves.easeInOut),
+
                 Container(
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
                     color: AppColors.backgroundElevated,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.accentAmber.withOpacity(0.3), width: 2),
+                    border: Border.all(
+                        color: AppColors.accentAmber.withOpacity(0.3),
+                        width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.accentAmber.withOpacity(0.2),
@@ -287,16 +300,24 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                     color: AppColors.accentAmber,
                   ),
                 )
-                .animate(onPlay: (controller) => controller.repeat())
-                .shimmer(duration: 3.seconds, color: Colors.white24)
-                .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 1.5.seconds, curve: Curves.easeInOut)
-                .then()
-                .scale(begin: const Offset(1.05, 1.05), end: const Offset(1, 1), duration: 1.5.seconds, curve: Curves.easeInOut),
+                    .animate(onPlay: (controller) => controller.repeat())
+                    .shimmer(duration: 3.seconds, color: Colors.white24)
+                    .scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.05, 1.05),
+                        duration: 1.5.seconds,
+                        curve: Curves.easeInOut)
+                    .then()
+                    .scale(
+                        begin: const Offset(1.05, 1.05),
+                        end: const Offset(1, 1),
+                        duration: 1.5.seconds,
+                        curve: Curves.easeInOut),
               ],
             ),
-            
+
             const SizedBox(height: 48),
-            
+
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 400),
               child: Text(
@@ -310,15 +331,16 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   'Personalizing for ',
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textMuted),
                 ),
                 Text(
                   _level.toUpperCase(),
@@ -330,7 +352,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                 ),
               ],
             ).animate().fadeIn(delay: 400.ms),
-            
+
             const SizedBox(height: 64),
 
             // Premium Tips Container
@@ -345,13 +367,15 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
               child: ClipRRect(
                 child: Column(
                   children: [
-                     Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
                           width: 4,
                           height: 4,
-                          decoration: const BoxDecoration(color: AppColors.accentAmber, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(
+                              color: AppColors.accentAmber,
+                              shape: BoxShape.circle),
                         ),
                         const SizedBox(width: 12),
                         Text(
@@ -366,7 +390,9 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                         Container(
                           width: 4,
                           height: 4,
-                          decoration: const BoxDecoration(color: AppColors.accentAmber, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(
+                              color: AppColors.accentAmber,
+                              shape: BoxShape.circle),
                         ),
                       ],
                     ),
@@ -390,10 +416,13 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                   ],
                 ),
               ),
-            ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
-            
+            )
+                .animate()
+                .fadeIn(delay: 800.ms)
+                .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+
             const SizedBox(height: 56),
-            
+
             // Refined Progress Indicator
             Stack(
               children: [
@@ -410,7 +439,8 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                   height: 3,
                   child: LinearProgressIndicator(
                     backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentAmber.withOpacity(0.6)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.accentAmber.withOpacity(0.6)),
                   ),
                 ),
               ],
@@ -442,7 +472,9 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? AppColors.accentAmber.withOpacity(0.1) : Colors.transparent,
+            color: selected
+                ? AppColors.accentAmber.withOpacity(0.1)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? AppColors.accentAmber : AppColors.borderCard,
@@ -452,13 +484,19 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: selected ? AppColors.accentAmber : AppColors.textSecondary),
+              Icon(icon,
+                  size: 18,
+                  color: selected
+                      ? AppColors.accentAmber
+                      : AppColors.textSecondary),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   label,
                   style: AppTextStyles.labelLarge.copyWith(
-                    color: selected ? AppColors.accentAmber : AppColors.textSecondary,
+                    color: selected
+                        ? AppColors.accentAmber
+                        : AppColors.textSecondary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -475,7 +513,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       key: const ValueKey('curated'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-         _buildGoalInput(),
+        _buildGoalInput(),
         if (_fetchedMetadata != null) ...[
           const SizedBox(height: 24),
           _buildTopicsPreview(),
@@ -501,7 +539,8 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                 style: AppTextStyles.bodyMedium,
                 decoration: const InputDecoration(
                   hintText: 'Paste YouTube playlist link...',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 ),
               ),
             ),
@@ -518,9 +557,11 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                 child: _isFetching
                     ? const Padding(
                         padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.backgroundDark),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.backgroundDark),
                       )
-                    : const Icon(Icons.download_rounded, color: AppColors.backgroundDark),
+                    : const Icon(Icons.download_rounded,
+                        color: AppColors.backgroundDark),
               ),
             ),
           ],
@@ -537,7 +578,8 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
 
   Widget _buildTopicsPreview() {
     final metadata = _fetchedMetadata!;
-    final totalDurationSec = metadata.fold(0, (sum, item) => sum + (item['duration_sec'] as int));
+    final totalDurationSec =
+        metadata.fold(0, (sum, item) => sum + (item['duration_sec'] as int));
     final totalMinutes = (totalDurationSec / 60).ceil();
     final averageMinutesPerDay = (totalMinutes / _days).ceil();
     final dynamicMaxMinutes = averageMinutesPerDay.clamp(15, 120);
@@ -549,19 +591,31 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       return h > 0 ? '${h}h ${m}m' : '${m}m';
     }
 
-    String formatTag(Duration d) {
-       final h = d.inHours;
-      final m = d.inMinutes % 60;
-      final s = d.inSeconds % 60;
-      return h > 0 ? '$h:$m:$s' : '$m:$s';
+    // Group topics by chapter
+    final List<dynamic> displayItems = [];
+    String? lastChapter;
+    for (final item in metadata) {
+      final chapter = item['chapter'] as String? ?? 'Exploration';
+      if (chapter != lastChapter) {
+        displayItems.add({'type': 'header', 'title': chapter});
+        lastChapter = chapter;
+      }
+      displayItems.add({'type': 'topic', 'data': item});
     }
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.backgroundElevated,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderCard),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,98 +626,141 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
               Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.list_alt_rounded, size: 16, color: AppColors.accentGreen),
+                    const Icon(Icons.map_rounded,
+                        size: 18, color: AppColors.accentAmber),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        'Syllabus Preview',
-                        style: AppTextStyles.labelLarge.copyWith(color: AppColors.accentGreen),
+                        'QUEST LOG',
+                        style: AppTextStyles.labelLarge.copyWith(
+                          color: AppColors.accentAmber,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Total: ${formatDuration(Duration(seconds: totalDurationSec))}',
-                style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundDark,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  formatDuration(Duration(seconds: totalDurationSec)),
+                  style: AppTextStyles.labelSmall
+                      .copyWith(color: AppColors.textPrimary),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           SizedBox(
-            height: 160,
+            height: 220,
             child: ListView.builder(
-              itemCount: metadata.length,
+              itemCount: displayItems.length,
               itemBuilder: (ctx, i) {
-                final item = metadata[i];
-                final videoMinutes = ((item['duration_sec'] as int) / 60).ceil();
-                final splitParts = (videoMinutes / dynamicMaxMinutes).ceil();
-                final isSplit = splitParts > 1;
+                final entry = displayItems[i];
+
+                if (entry['type'] == 'header') {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: AppColors.accentAmber,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          (entry['title'] as String).toUpperCase(),
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textMuted,
+                            letterSpacing: 1,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child:
+                                Divider(color: Colors.white.withOpacity(0.05))),
+                      ],
+                    ),
+                  );
+                }
+
+                final item = entry['data'] as Map<String, dynamic>;
+                final bool isBoss = item['is_boss'] as bool? ?? false;
+                final String rank = item['rank'] as String? ?? 'B';
+                final topicMinutes =
+                    ((item['duration_sec'] as int) / 60).ceil();
                 final subtopics = item['subtopics'] as List<dynamic>? ?? [];
 
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${i + 1}. ${item['title']}',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w600,
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: EdgeInsets.all(isBoss ? 12 : 8),
+                    decoration: BoxDecoration(
+                      color: isBoss
+                          ? AppColors.accentAmber.withOpacity(0.05)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                      border: isBoss
+                          ? Border.all(
+                              color: AppColors.accentAmber.withOpacity(0.3))
+                          : null,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            if (isBoss)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 10),
+                                child: Icon(Icons.gite_rounded,
+                                    size: 20, color: AppColors.accentAmber),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isSplit ? AppColors.accentAmber.withOpacity(0.1) : AppColors.backgroundDark,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              isSplit ? '$splitParts Parts' : formatTag(Duration(seconds: item['duration_sec'] as int)),
-                              style: AppTextStyles.labelSmall.copyWith(
-                                color: isSplit ? AppColors.accentAmber : AppColors.textMuted,
-                                fontSize: 10,
+                            Expanded(
+                              child: Text(
+                                item['title'],
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: isBoss
+                                      ? AppColors.accentAmber
+                                      : AppColors.textPrimary,
+                                  fontWeight: isBoss
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      if (subtopics.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 16, top: 4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: subtopics.take(3).map((sub) => Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('• ', style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
-                                  Expanded(
-                                    child: Text(
-                                      sub.toString(),
-                                      style: AppTextStyles.labelSmall.copyWith(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )).toList(),
-                          ),
+                            const SizedBox(width: 8),
+                            _rankBadge(rank),
+                          ],
                         ),
-                    ],
+                        if (isBoss)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'BOSS CHALLENGE',
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.accentAmber,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -671,25 +768,61 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
           ),
           Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Daily Session Estimate: ~${averageMinutesPerDay.clamp(10, 480)} mins',
-                  style: AppTextStyles.labelSmall.copyWith(color: AppColors.textPrimary, fontSize: 10),
+                  'Target: ${averageMinutesPerDay.clamp(10, 480)}m / day',
+                  style: AppTextStyles.labelSmall
+                      .copyWith(color: AppColors.textMuted, fontSize: 10),
                 ),
                 if (averageMinutesPerDay > 120)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Warning: Heavy workload. Consider increasing days.',
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.accentAmber, fontSize: 10),
-                    ),
+                  Text(
+                    '⚠️ High Difficulty',
+                    style: AppTextStyles.labelSmall
+                        .copyWith(color: AppColors.accentAmber, fontSize: 10),
                   ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _rankBadge(String rank) {
+    Color color;
+    switch (rank.toUpperCase()) {
+      case 'S':
+        color = AppColors.accentAmber;
+        break;
+      case 'A':
+        color = const Color(0xFFFF6B6B);
+        break;
+      case 'B':
+        color = const Color(0xFF4DABF7);
+        break;
+      case 'C':
+        color = AppColors.accentGreen;
+        break;
+      default:
+        color = AppColors.textMuted;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+      ),
+      child: Text(
+        'RANK $rank',
+        style: AppTextStyles.labelSmall.copyWith(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -708,9 +841,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
-        )
-            .animate()
-            .scale(duration: 600.ms, curve: Curves.elasticOut),
+        ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
         const SizedBox(height: 20),
         Text(
           'What do you\nwant to learn?',
@@ -723,9 +854,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
         Text(
           'Build a science-backed plan that adapts to you.',
           style: AppTextStyles.bodyMedium,
-        )
-            .animate()
-            .fadeIn(delay: 350.ms, duration: 500.ms),
+        ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
       ],
     );
   }
@@ -764,7 +893,8 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
           ),
         )
             .animate()
-            .fadeIn(delay: Duration(milliseconds: 450 + entry.key * 40))
+            .fadeIn(
+                delay: Duration(milliseconds: (450 + entry.key * 40).toInt()))
             .scale(begin: const Offset(0.9, 0.9));
       }).toList(),
     );
@@ -780,15 +910,15 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
           children: [
             _levelButton('beginner', 'Beginner', Icons.spa_rounded),
             const SizedBox(width: 10),
-            _levelButton('intermediate', 'Intermediate', Icons.trending_up_rounded),
+            _levelButton(
+                'intermediate', 'Intermediate', Icons.trending_up_rounded),
             const SizedBox(width: 10),
-            _levelButton('advanced', 'Advanced', Icons.local_fire_department_rounded),
+            _levelButton(
+                'advanced', 'Advanced', Icons.local_fire_department_rounded),
           ],
         ),
       ],
-    )
-        .animate()
-        .fadeIn(delay: 550.ms, duration: 400.ms);
+    ).animate().fadeIn(delay: 550.ms, duration: 400.ms);
   }
 
   Widget _levelButton(String value, String label, IconData icon) {
@@ -882,9 +1012,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
           ],
         ),
       ],
-    )
-        .animate()
-        .fadeIn(delay: 650.ms, duration: 400.ms);
+    ).animate().fadeIn(delay: 650.ms, duration: 400.ms);
   }
 
   Widget _buildCTA() {
@@ -908,11 +1036,10 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
                   const Text('Generate My Plan'),
                   const SizedBox(width: 8),
                   Icon(
-                    _fetchedMetadata == null || _isYoutubeSource 
-                        ? Icons.bolt_rounded 
-                        : Icons.arrow_forward_rounded, 
-                    size: 18
-                  ),
+                      _fetchedMetadata == null || _isYoutubeSource
+                          ? Icons.bolt_rounded
+                          : Icons.arrow_forward_rounded,
+                      size: 18),
                 ],
               ),
       ),

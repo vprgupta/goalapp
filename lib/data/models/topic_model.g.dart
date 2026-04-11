@@ -33,13 +33,16 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       thumbnailUrl: fields[13] as String?,
       startSeconds: fields[14] as int,
       subTopics: (fields[15] as List?)?.cast<String>(),
+      moduleName: fields[16] as String?,
+      isBoss: fields[17] as bool,
+      resources: (fields[18] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, TopicModel obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -71,7 +74,13 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       ..writeByte(14)
       ..write(obj.startSeconds)
       ..writeByte(15)
-      ..write(obj.subTopics);
+      ..write(obj.subTopics)
+      ..writeByte(16)
+      ..write(obj.moduleName)
+      ..writeByte(17)
+      ..write(obj.isBoss)
+      ..writeByte(18)
+      ..write(obj.resources);
   }
 
   @override

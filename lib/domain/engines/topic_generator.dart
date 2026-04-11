@@ -53,13 +53,18 @@ class TopicGenerator {
       final List<String> subTopics = (item['subtopics'] as List<dynamic>?)?.map((s) => s.toString()).toList() ?? [];
       final String? videoId = item['video_id'] as String?;
       final String? thumbUrl = item['thumbnail_url'] as String?;
+      final String? chapter = item['chapter'] as String?;
+      final bool isBoss = item['is_boss'] as bool? ?? false;
+      final String? rank = item['rank'] as String?;
 
       if (videoMinutes <= dynamicMaxMinutes) {
-        // Normal video (fits in the daily budget or is smaller)
-        final progress = i / metadata.length;
-        int tier = 1;
-        if (progress > 0.3) tier = 2;
-        if (progress > 0.7) tier = 3;
+        // Normal topic
+        int tier = _mapRankToTier(rank);
+        if (rank == null) {
+          final progress = i / metadata.length;
+          if (progress > 0.3) tier = 2;
+          if (progress > 0.7) tier = 3;
+        }
 
         result.add(TopicModel(
           id: _uuid.v4(),
@@ -71,6 +76,8 @@ class TopicGenerator {
           thumbnailUrl: thumbUrl,
           startSeconds: 0,
           subTopics: subTopics,
+          moduleName: chapter,
+          isBoss: isBoss,
         ));
       } else {
         // LONG VIDEO: Split proportionally based on global average
@@ -78,10 +85,12 @@ class TopicGenerator {
         final int minutesPerPart = (videoMinutes / numParts).floor();
 
         for (int p = 1; p <= numParts; p++) {
-          final progress = (i + (p / numParts)) / metadata.length;
-          int tier = 1;
-          if (progress > 0.3) tier = 2;
-          if (progress > 0.7) tier = 3;
+          int tier = _mapRankToTier(rank);
+          if (rank == null) {
+            final progress = (i + (p / numParts)) / metadata.length;
+            if (progress > 0.3) tier = 2;
+            if (progress > 0.7) tier = 3;
+          }
 
           result.add(TopicModel(
             id: _uuid.v4(),
@@ -93,11 +102,23 @@ class TopicGenerator {
             thumbnailUrl: thumbUrl,
             startSeconds: (p - 1) * minutesPerPart * 60,
             subTopics: p == 1 ? subTopics : [], // Only add subtopics to first part
+            moduleName: chapter != null ? '$chapter (Part $p)' : null,
+            isBoss: p == numParts ? isBoss : false, // Only last part is the boss
           ));
         }
       }
     }
     return result;
+  }
+
+  static int _mapRankToTier(String? rank) {
+    switch (rank?.toUpperCase()) {
+      case 'S': return 3;
+      case 'A': return 3;
+      case 'B': return 2;
+      case 'C': return 1;
+      default: return 1;
+    }
   }
 
   static List<Map<String, dynamic>> _getTopicTree(String goal, String level) {

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 void main() async {
-  final apiKey = 'AIzaSyDZBEIi_omqAPSGRC6eqcCUb1KryXUcUos';
+  final String apiKey = 'AIzaSyCGzFu9pa2NyRCC_Zi-pcTD8td98RGQduQ';
   final models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
   final versions = ['v1', 'v1beta'];
 

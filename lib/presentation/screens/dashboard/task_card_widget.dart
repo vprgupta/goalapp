@@ -51,26 +51,26 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   }
 
   Future<void> _handleTap() async {
-    if (widget.isCompleted || _tapped) return;
-
-    bool? recallResult;
+    if (widget.isCompleted) return;
 
     if (widget.task.isRevise && widget.task.recallPrompt != null) {
-      // Navigate to recall screen, passing subTopics and revisionCount directly
+      // Navigate to recall screen
       final result = await context.push('/recall', extra: {
         'task': widget.task,
         'subTopics': widget.subTopics,
         'revisionCount': widget.subTopics.isNotEmpty ? widget.subTopics.length : 0,
       });
       
-      // If user popped without answer (null), don't complete
       if (result == null || result is! Map || !result.containsKey('correct')) return;
-      
-      recallResult = result['correct'] as bool;
+      _onCompleteAction(recallResult: result['correct'] as bool);
+    } else {
+      // For LEARN tasks, the main card tap opens the Learning Hub
+      context.push('/topic-resources/${widget.task.topicId}');
     }
+  }
 
-    if (!mounted) return;
-
+  void _onCompleteAction({bool? recallResult}) {
+    if (_tapped) return;
     setState(() => _tapped = true);
     _checkController.forward().then((_) {
       if (mounted) {
@@ -87,8 +87,25 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
     final String url = 'https://www.youtube.com/watch?v=${widget.task.videoId}&t=${widget.task.startSeconds}';
     final Uri uri = Uri.parse(url);
     
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      
+      if (!launched) {
+        await launchUrl(
+          uri,
+          mode: LaunchMode.inAppBrowserView,
+        );
+      }
+    } catch (e) {
+      debugPrint('Could not launch YouTube: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open YouTube')),
+        );
+      }
     }
   }
 
@@ -213,6 +230,44 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
     );
   }
 
+  Widget _buildResourceHubButton(BuildContext context) {
+    if (widget.isCompleted) return const SizedBox.shrink();
+    
+    return GestureDetector(
+      onTap: () => context.push('/topic-resources/${widget.task.topicId}'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.accentAmber.withOpacity(0.15),
+              AppColors.accentAmber.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.accentAmber.withOpacity(0.4), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.hub_rounded, size: 14, color: AppColors.accentAmber),
+            const SizedBox(width: 8),
+            Text(
+              'Explore Learning Hub',
+              style: AppTextStyles.labelSmall.copyWith(
+                color: AppColors.accentAmber,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.accentAmber),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 300.ms).shimmer(delay: 2000.ms, duration: 1500.ms, color: Colors.white12);
+  }
+
   Widget _buildContent(String typeLabel, Color typeColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,6 +307,8 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
           overflow: TextOverflow.ellipsis,
         ),
         _buildYouTubeButton(),
+        const SizedBox(height: 8),
+        _buildResourceHubButton(context),
         if (widget.subTopics.isNotEmpty) ...[
           const SizedBox(height: 10),
           _buildSubTopicChips(),
@@ -340,36 +397,40 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   }
 
   Widget _buildCheckbox(Color typeColor) {
-    return AnimatedBuilder(
-      animation: _checkController,
-      builder: (context, child) {
-        final value = _checkController.value;
-        return Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.isCompleted || _tapped
-                ? AppColors.accentGreen
-                : Colors.transparent,
-            border: Border.all(
+    return GestureDetector(
+      onTap: widget.isCompleted ? null : () => _onCompleteAction(),
+      child: AnimatedBuilder(
+        animation: _checkController,
+        builder: (context, child) {
+          final value = _checkController.value;
+          return Container(
+            width: 32,
+            height: 32,
+            padding: const EdgeInsets.all(2), // Hit area padding
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
               color: widget.isCompleted || _tapped
                   ? AppColors.accentGreen
-                  : AppColors.borderCard,
-              width: 2,
+                  : Colors.transparent,
+              border: Border.all(
+                color: widget.isCompleted || _tapped
+                    ? AppColors.accentGreen
+                    : AppColors.borderCard,
+                width: 2,
+              ),
             ),
-          ),
-          child: (widget.isCompleted || value > 0.5)
-              ? const Icon(Icons.check_rounded,
-                  color: Colors.white, size: 16)
-                  .animate()
-                  .scale(
-                    duration: 200.ms,
-                    curve: Curves.elasticOut,
-                  )
-              : null,
-        );
-      },
+            child: (widget.isCompleted || value > 0.5)
+                ? const Icon(Icons.check_rounded,
+                    color: Colors.white, size: 18)
+                    .animate()
+                    .scale(
+                      duration: 200.ms,
+                      curve: Curves.elasticOut,
+                    )
+                : Icon(Icons.circle_outlined, size: 14, color: AppColors.textMuted.withOpacity(0.3)),
+          );
+        },
+      ),
     );
   }
 }

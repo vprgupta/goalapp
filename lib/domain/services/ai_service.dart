@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AiService {
-  static const String _apiKey = 'AIzaSyDZBEIi_omqAPSGRC6eqcCUb1KryXUcUos';
+  static const String _apiKey = 'AIzaSyCGzFu9pa2NyRCC_Zi-pcTD8td98RGQduQ';
   
   // Switching back to v1beta as confirmed by direct curl diagnostic
   static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
@@ -15,38 +15,30 @@ class AiService {
     required int days,
   }) async {
     final systemPrompt = """
-You are a Senior Learning Architect and Expert Curriculum Designer. Your task is to generate a comprehensive, professional learning syllabus for a user's goal.
+Create a professional learning syllabus.
+GOAL: $goal | LEVEL: $level | DURATION: $days days.
 
-BEHAVIOR:
-- Be rigorous and highly structured. 
-- Break down complex goals into logical, progressive steps.
-- For each topic, provide specific, high-value sub-topics that the user should master.
-
-JSON SCHEMA:
-The response MUST be a valid JSON object with a single key 'topics'.
-Each topic in the list must have:
-- 'title': A professional name for the learning module.
-- 'duration_sec': Estimated time in seconds (15-60 mins depending on complexity).
-- 'subtopics': A list of 3-5 specific bullet points/concepts to be covered in this topic.
-
-CONTEXT:
-Goal: $goal
-Target Level: $level
-Planned Duration: $days days
-
-Example Response Format:
+JSON SCHEMA (Return ONLY this object):
 {
   "topics": [
     { 
-      "title": "Module 1: Professional Environment Setup", 
-      "duration_sec": 1800,
-      "subtopics": ["CLI Basics", "Compiler Installation", "Environment Variables", "First Hello World"]
+      "title": "Module name", 
+      "duration_sec": 3600,
+      "subtopics": ["concept 1", "concept 2", "concept 3"],
+      "chapter": "Thematic World Name (e.g. World 1: Basics)",
+      "is_boss": boolean (true for last topic of each world),
+      "rank": "S|A|B|C" (Difficulty)
     }
   ]
 }
+
+BEHAVIOR:
+- Be concise. 
+- Group topics into 3-5 'Worlds'.
+- Last topic of each World must be a Boss Challenge ('is_boss': true).
+- Rank: S (Expert), A (Advanced), B (Mid), C (Basic).
 """;
 
-    // Verified the available model ID for this project is 'gemini-flash-latest'
     final modelName = 'gemini-flash-latest';
     
     try {
@@ -57,17 +49,23 @@ Example Response Format:
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'contents': [
-            {
-              'parts': [
-                {'text': systemPrompt}
-              ]
-            }
+            {'parts': [{'text': systemPrompt}]}
           ],
         }),
       ).timeout(const Duration(seconds: 30));
 
+      if (response.statusCode == 429) {
+        final body = jsonDecode(response.body);
+        final message = body['error']?['message'] ?? '';
+        if (message.contains('quota')) {
+          throw Exception('Daily Limit Reached: You have used all 1,500 daily requests. Please try again tomorrow.');
+        } else {
+          throw Exception('Rate Limit: Please wait 60 seconds before trying again.');
+        }
+      }
+
       if (response.statusCode != 200) {
-        throw Exception('API ERROR ${response.statusCode}: ${response.body}');
+        throw Exception('API ERROR ${response.statusCode}');
       }
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
@@ -97,6 +95,9 @@ Example Response Format:
         'title': t['title'] as String,
         'duration_sec': (t['duration_sec'] as num).toInt(),
         'subtopics': (t['subtopics'] as List<dynamic>?)?.map((s) => s.toString()).toList() ?? [],
+        'chapter': t['chapter'] as String? ?? 'Exploration',
+        'is_boss': t['is_boss'] as bool? ?? false,
+        'rank': t['rank'] as String? ?? 'B',
       }).toList();
     } catch (e) {
       throw Exception('Roadmap Generation Failed: $e');

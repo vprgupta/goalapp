@@ -52,6 +52,15 @@ class TopicModel extends HiveObject {
   @HiveField(15)
   late List<String> subTopics;
 
+  @HiveField(16)
+  late String? moduleName; // e.g. "World 1: Fundamentals"
+
+  @HiveField(17)
+  late bool isBoss; // Marks the end-of-chapter milestone
+
+  @HiveField(18)
+  late List<String> resources; // JSON-encoded curated resources
+
   TopicModel({
     required this.id,
     required this.goalId,
@@ -69,9 +78,13 @@ class TopicModel extends HiveObject {
     this.thumbnailUrl,
     this.startSeconds = 0,
     List<String>? subTopics,
+    this.moduleName,
+    this.isBoss = false,
+    List<String>? resources,
   })  : scheduledRevisions = scheduledRevisions ?? [],
         completedRevisions = completedRevisions ?? [],
-        subTopics = subTopics ?? [];
+        subTopics = subTopics ?? [],
+        resources = resources ?? [];
 
   bool get isLearned => learnedOnDay > 0;
   bool get isStruggling => incorrectAnswers >= 3;
