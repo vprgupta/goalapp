@@ -30,7 +30,10 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
   List<Map<String, dynamic>>? _fetchedMetadata;
 
   int _currentTipIndex = 0;
+  int _currentStatusIndex = 0;
   Timer? _tipTimer;
+  Timer? _statusTimer;
+
   final List<String> _loadingTips = [
     "Spaced repetition can improve long-term retention by up to 200%.",
     "Short study sessions (25-45 mins) are more effective than marathon cramming.",
@@ -39,6 +42,16 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
     "Active Recall is the #1 science-backed method for durable learning.",
     "Sleep is when your brain actually encodes the day's new memories.",
     "Interleaving: Mixing different topics prevents 'learning plateaus'."
+  ];
+
+  final List<String> _loadingStatuses = [
+    "Analyzing goal complexity...",
+    "Curating expert content...",
+    "Structuring curriculum hierarchy...",
+    "Mapping scientific sub-topics...",
+    "Refining path for your level...",
+    "Optimizing revision schedule...",
+    "Finalizing expert roadmap..."
   ];
 
   final List<String> _suggestions = [
@@ -58,22 +71,34 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
     _urlController.dispose();
     _ytService.dispose();
     _tipTimer?.cancel();
+    _statusTimer?.cancel();
     super.dispose();
   }
 
-  void _startTipTimer() {
+  void _startLoadingTimers() {
     _tipTimer?.cancel();
-    setState(() => _currentTipIndex = 0);
-    _tipTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (mounted) {
-        setState(() => _currentTipIndex = (_currentTipIndex + 1) % _loadingTips.length);
+    _statusTimer?.cancel();
+    setState(() {
+      _currentTipIndex = 0;
+      _currentStatusIndex = 0;
+    });
+    
+    _tipTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (mounted) setState(() => _currentTipIndex = (_currentTipIndex + 1) % _loadingTips.length);
+    });
+    
+    _statusTimer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
+      if (mounted && _currentStatusIndex < _loadingStatuses.length - 1) {
+        setState(() => _currentStatusIndex++);
       }
     });
   }
 
-  void _stopTipTimer() {
+  void _stopLoadingTimers() {
     _tipTimer?.cancel();
+    _statusTimer?.cancel();
     _tipTimer = null;
+    _statusTimer = null;
   }
 
   Future<void> _fetchPlaylist() async {
@@ -81,18 +106,18 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
     if (url.isEmpty) return;
 
     setState(() => _isFetching = true);
-    _startTipTimer();
+    _startLoadingTimers();
     try {
       final metadata = await _ytService.fetchPlaylistMetadata(url);
       setState(() {
         _fetchedMetadata = metadata;
         _isFetching = false;
-        _stopTipTimer();
+        _stopLoadingTimers();
       });
     } catch (e) {
       setState(() {
         _isFetching = false;
-        _stopTipTimer();
+        _stopLoadingTimers();
       });
     }
   }
@@ -107,7 +132,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
     }
 
     setState(() => _isFetching = true);
-    _startTipTimer();
+    _startLoadingTimers();
     try {
       final metadata = await _aiService.generateSyllabus(
         goal: goal,
@@ -117,12 +142,12 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
       setState(() {
         _fetchedMetadata = metadata;
         _isFetching = false;
-        _stopTipTimer();
+        _stopLoadingTimers();
       });
     } catch (e) {
       setState(() {
         _isFetching = false;
-        _stopTipTimer();
+        _stopLoadingTimers();
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -219,93 +244,177 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.accentAmber.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.auto_awesome_rounded,
-                size: 48,
-                color: AppColors.accentAmber,
-              ),
-            )
-            .animate(onPlay: (controller) => controller.repeat())
-            .shimmer(duration: 2.seconds, color: AppColors.accentAmber.withOpacity(0.3))
-            .scale(begin: const Offset(1, 1), end: const Offset(1.1, 1.1), duration: 1.seconds, curve: Curves.easeInOut)
-            .then()
-            .scale(begin: const Offset(1.1, 1.1), end: const Offset(1, 1), duration: 1.seconds, curve: Curves.easeInOut),
-            
-            const SizedBox(height: 40),
-            
-            Text(
-              'Architecting your roadmap...',
-              style: AppTextStyles.titleLarge.copyWith(color: AppColors.textPrimary),
-              textAlign: TextAlign.center,
-            ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0),
-            
-            const SizedBox(height: 12),
-            
-            Text(
-              'AI is optimizing for your ${_level.toLowerCase()} level.',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted),
-            ).animate().fadeIn(delay: 300.ms, duration: 600.ms),
-            
-            const SizedBox(height: 60),
-
-            // Tips Carousel
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundElevated,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.borderCard),
-              ),
-              child: Column(
-                children: [
-                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.lightbulb_outline_rounded, size: 16, color: AppColors.accentAmber),
-                      const SizedBox(width: 8),
-                      Text(
-                        'LEARNING TIP',
-                        style: AppTextStyles.labelSmall.copyWith(
-                          color: AppColors.accentAmber,
-                          letterSpacing: 1.2,
-                        ),
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background Aura
+                Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.accentAmber.withOpacity(0.2),
+                        AppColors.accentAmber.withOpacity(0.05),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                )
+                .animate(onPlay: (controller) => controller.repeat())
+                .scale(begin: const Offset(1, 1), end: const Offset(1.3, 1.3), duration: 2.seconds, curve: Curves.easeInOut)
+                .fadeOut(duration: 2.seconds, curve: Curves.easeInOut),
+                
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundElevated,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.accentAmber.withOpacity(0.3), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accentAmber.withOpacity(0.2),
+                        blurRadius: 20,
+                        spreadRadius: 5,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 500),
-                    child: Text(
-                      _loadingTips[_currentTipIndex],
-                      key: ValueKey(_currentTipIndex),
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontStyle: FontStyle.italic,
-                        height: 1.5,
-                      ),
-                    ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 40,
+                    color: AppColors.accentAmber,
                   ),
-                ],
-              ),
-            ).animate().fadeIn(delay: 600.ms, duration: 800.ms).scale(begin: const Offset(0.95, 0.95)),
+                )
+                .animate(onPlay: (controller) => controller.repeat())
+                .shimmer(duration: 3.seconds, color: Colors.white24)
+                .scale(begin: const Offset(1, 1), end: const Offset(1.05, 1.05), duration: 1.5.seconds, curve: Curves.easeInOut)
+                .then()
+                .scale(begin: const Offset(1.05, 1.05), end: const Offset(1, 1), duration: 1.5.seconds, curve: Curves.easeInOut),
+              ],
+            ),
             
             const SizedBox(height: 48),
             
-            const SizedBox(
-              width: 140,
-              child: LinearProgressIndicator(
-                backgroundColor: AppColors.backgroundDark,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentAmber),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              child: Text(
+                _loadingStatuses[_currentStatusIndex],
+                key: ValueKey(_currentStatusIndex),
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: AppColors.textPrimary,
+                  letterSpacing: 0.5,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ).animate().fadeIn(delay: 1.seconds),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Personalizing for ',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
+                ),
+                Text(
+                  _level.toUpperCase(),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.accentAmber,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 400.ms),
+            
+            const SizedBox(height: 64),
+
+            // Premium Tips Container
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundElevated.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
+              ),
+              child: ClipRRect(
+                child: Column(
+                  children: [
+                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(color: AppColors.accentAmber, shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'MASTER TIPS',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.accentAmber.withOpacity(0.8),
+                            letterSpacing: 2,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(color: AppColors.accentAmber, shape: BoxShape.circle),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 600),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: Text(
+                        _loadingTips[_currentTipIndex],
+                        key: ValueKey(_currentTipIndex),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textPrimary.withOpacity(0.9),
+                          fontStyle: FontStyle.italic,
+                          fontSize: 14,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+            
+            const SizedBox(height: 56),
+            
+            // Refined Progress Indicator
+            Stack(
+              children: [
+                Container(
+                  width: 160,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Container(
+                  width: 160,
+                  height: 3,
+                  child: LinearProgressIndicator(
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentAmber.withOpacity(0.6)),
+                  ),
+                ),
+              ],
+            ).animate().fadeIn(delay: 1200.ms),
           ],
         ),
       ),
@@ -345,10 +454,13 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
             children: [
               Icon(icon, size: 18, color: selected ? AppColors.accentAmber : AppColors.textSecondary),
               const SizedBox(width: 8),
-              Text(
-                label,
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: selected ? AppColors.accentAmber : AppColors.textSecondary,
+              Flexible(
+                child: Text(
+                  label,
+                  style: AppTextStyles.labelLarge.copyWith(
+                    color: selected ? AppColors.accentAmber : AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -457,16 +569,22 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.list_alt_rounded, size: 16, color: AppColors.accentGreen),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Syllabus Preview',
-                    style: AppTextStyles.labelLarge.copyWith(color: AppColors.accentGreen),
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.list_alt_rounded, size: 16, color: AppColors.accentGreen),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Syllabus Preview',
+                        style: AppTextStyles.labelLarge.copyWith(color: AppColors.accentGreen),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 'Total: ${formatDuration(Duration(seconds: totalDurationSec))}',
                 style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
