@@ -33,7 +33,8 @@ class AppTheme {
         labelLarge: AppTextStyles.labelLarge,
         labelSmall: AppTextStyles.labelSmall,
       ),
-      appBarTheme: const AppBarTheme(
+      // Theming skill: use AppBarThemeData (not AppBarTheme) per M3 normalization.
+      appBarTheme: const AppBarThemeData(
         backgroundColor: AppColors.backgroundDark,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -68,7 +69,8 @@ class AppTheme {
           ),
         ),
       ),
-      inputDecorationTheme: InputDecorationTheme(
+      // Theming skill: use InputDecorationThemeData (not InputDecorationTheme).
+      inputDecorationTheme: InputDecorationThemeData(
         filled: true,
         fillColor: AppColors.backgroundElevated,
         border: OutlineInputBorder(
@@ -82,6 +84,20 @@ class AppTheme {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.accentAmber, width: 1.5),
+        ),
+        // Error border — wired up for Form validators (flutter-building-forms skill)
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.accentRed, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.accentRed, width: 2),
+        ),
+        errorStyle: const TextStyle(
+          fontFamily: 'Outfit',
+          fontSize: 12,
+          color: AppColors.accentRed,
         ),
         hintStyle: AppTextStyles.bodyLarge.copyWith(color: AppColors.textHint),
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -102,7 +118,50 @@ class AppTheme {
         elevation: 0,
         type: BottomNavigationBarType.fixed,
       ),
+      // Animation fix (flutter-animating-apps skill): replace default flat
+      // page cuts with a smooth fade+slide-up transition on all platforms.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _SmoothFadeSlideTransition(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: _SmoothFadeSlideTransition(),
+        },
+      ),
       fontFamily: 'Outfit',
+
+    );
+  }
+}
+
+/// Custom page route transition: slides up + fades in from 95% opacity.
+/// Implements the explicit animation pattern from flutter-animating-apps skill:
+/// uses [Tween], [CurvedAnimation], and [SlideTransition]+[FadeTransition].
+class _SmoothFadeSlideTransition extends PageTransitionsBuilder {
+  const _SmoothFadeSlideTransition();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // Slide from bottom 4% upward
+    final slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.04),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+
+    // Fade from 0 to 1
+    final fadeAnimation = CurvedAnimation(
+      parent: animation,
+      curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+    );
+
+    return SlideTransition(
+      position: slideAnimation,
+      child: FadeTransition(opacity: fadeAnimation, child: child),
     );
   }
 }

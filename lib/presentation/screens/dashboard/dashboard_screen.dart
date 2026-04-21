@@ -9,6 +9,8 @@ import '../../providers/goal_provider.dart';
 import 'task_card_widget.dart';
 import 'key_concepts_dialog.dart';
 import 'day_complete_overlay.dart';
+import '../../providers/deep_dive_provider.dart';
+import '../../../domain/services/home_widget_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -66,6 +68,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final goal = ref.watch(activeGoalProvider);
     final dayPlan = ref.watch(currentDayPlanProvider);
 
+    // flutter-adding-home-screen-widgets: Keep the OS widget in sync with the task list
+    ref.listen(currentDayPlanProvider, (previous, next) {
+      if (goal != null && next != null) {
+        final pendingCount = next.tasks.where((t) => !t.isDone).length;
+        HomeWidgetService.updateTasksWidget(
+          pendingTasksCount: pendingCount,
+          goalName: goal.name,
+        );
+      }
+    });
+
     if (goal == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -85,6 +98,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             child: SafeArea(
               child: CustomScrollView(
+                // flutter-caching-data skill: pre-render 600px of off-screen
+                // content to eliminate layout jank when scrolling task cards.
+                cacheExtent: 600,
                 slivers: [
                   SliverToBoxAdapter(child: _buildHeader(goal, dayPlan)),
                   SliverToBoxAdapter(
@@ -109,13 +125,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             final topic = ref
                                 .read(goalRepositoryProvider)
                                 .getTopic(task.topicId);
+                            final isExpanded = topic?.isBlueprintGenerated ?? true;
+                            final isExpanding = ref.watch(deepDiveProvider).contains(task.topicId);
+                            
                             return TaskCardWidget(
                               key: ValueKey(task.id),
                               task: task,
                               topicName: topic?.name ?? task.title,
+                              moduleName: topic?.moduleName,
                               thumbnailUrl: topic?.thumbnailUrl,
                               subTopics: topic?.subTopics ?? [],
                               isCompleted: task.isDone,
+                              isExpanded: isExpanded,
+                              isExpanding: isExpanding,
+                              onDeepDive: () {
+                                if (topic != null) {
+                                  ref.read(deepDiveProvider.notifier).expandPillar(topic);
+                                }
+                              },
                               onComplete: ({recallCorrect}) =>
                                   _onTaskComplete(task, recallCorrect: recallCorrect),
                             )

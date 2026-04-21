@@ -36,13 +36,21 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       moduleName: fields[16] as String?,
       isBoss: fields[17] as bool,
       resources: (fields[18] as List?)?.cast<String>(),
+      prerequisites: (fields[19] as List?)?.cast<String>(),
+      weight: fields[20] as double,
+      retentionScore: fields[21] as double,
+      errorTypes: (fields[22] as Map?)?.cast<String, int>(),
+      isBlueprintGenerated: fields[23] as bool,
+      stability: fields[24] as double,
+      difficulty: fields[25] as double,
+      sortOrder: fields[26] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, TopicModel obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(27)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -80,7 +88,23 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       ..writeByte(17)
       ..write(obj.isBoss)
       ..writeByte(18)
-      ..write(obj.resources);
+      ..write(obj.resources)
+      ..writeByte(19)
+      ..write(obj.prerequisites)
+      ..writeByte(20)
+      ..write(obj.weight)
+      ..writeByte(21)
+      ..write(obj.retentionScore)
+      ..writeByte(22)
+      ..write(obj.errorTypes)
+      ..writeByte(23)
+      ..write(obj.isBlueprintGenerated)
+      ..writeByte(24)
+      ..write(obj.stability)
+      ..writeByte(25)
+      ..write(obj.difficulty)
+      ..writeByte(26)
+      ..write(obj.sortOrder);
   }
 
   @override

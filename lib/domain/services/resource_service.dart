@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'base_llm_service.dart';
 
 class ResourceService {
-  static const String _apiKey = 'AIzaSyCGzFu9pa2NyRCC_Zi-pcTD8td98RGQduQ';
-  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+  final BaseLlmService _llmService = BaseLlmService();
 
   Future<List<Map<String, String>>> fetchResources({
     required String topicName,
@@ -55,33 +54,10 @@ Return a JSON object with THREE keys: 'resources', 'practice', and 'mastery'.
 Focus on providing 'Topper IQ'—insights that go beyond just facts.
 """;
 
-    final modelName = 'gemini-1.5-flash';
-    
     try {
-      final url = Uri.parse('$_baseUrl/models/$modelName:generateContent?key=$_apiKey');
+      final text = await _llmService.generateText(systemPrompt);
       
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'parts': [
-                {'text': systemPrompt}
-              ]
-            }
-          ],
-        }),
-      ).timeout(const Duration(seconds: 30));
-
-      if (response.statusCode != 200) {
-        throw Exception('API ERROR ${response.statusCode}');
-      }
-
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
-      final String? text = responseData['candidates']?[0]['content']?['parts']?[0]['text'];
-      
-      if (text == null || text.isEmpty) {
+      if (text.isEmpty) {
         return [];
       }
 

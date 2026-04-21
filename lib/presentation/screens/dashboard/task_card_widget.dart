@@ -10,19 +10,27 @@ import '../../../data/models/task_model.dart';
 class TaskCardWidget extends StatefulWidget {
   final TaskModel task;
   final String topicName;
+  final String? moduleName;
   final String? thumbnailUrl;
   final List<String> subTopics;
   final void Function({bool? recallCorrect}) onComplete;
+  final VoidCallback? onDeepDive;
   final bool isCompleted;
+  final bool isExpanded;
+  final bool isExpanding;
 
   const TaskCardWidget({
     super.key,
     required this.task,
     required this.topicName,
+    this.moduleName,
     this.thumbnailUrl,
     this.subTopics = const [],
     required this.onComplete,
+    this.onDeepDive,
     required this.isCompleted,
+    this.isExpanded = true,
+    this.isExpanding = false,
   });
 
   @override
@@ -64,8 +72,13 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
       if (result == null || result is! Map || !result.containsKey('correct')) return;
       _onCompleteAction(recallResult: result['correct'] as bool);
     } else {
-      // For LEARN tasks, the main card tap opens the Learning Hub
-      context.push('/topic-resources/${widget.task.topicId}');
+      // For LEARN tasks, if it's an unexpanded pillar, trigger deep dive
+      if (!widget.isExpanded && widget.onDeepDive != null) {
+        widget.onDeepDive!();
+      } else {
+        // Otherwise, open the Learning Hub
+        context.push('/topic-resources/${widget.task.topicId}');
+      }
     }
   }
 
@@ -186,14 +199,17 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
       );
     }
 
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
+    return Hero(
+      tag: 'topic_icon_${widget.task.topicId}',
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: color, size: 22),
       ),
-      child: Icon(icon, color: color, size: 22),
     );
   }
 
@@ -233,7 +249,62 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   Widget _buildResourceHubButton(BuildContext context) {
     if (widget.isCompleted) return const SizedBox.shrink();
     
-    return GestureDetector(
+    if (!widget.isExpanded) {
+      return GestureDetector(
+        onTap: widget.isExpanding ? null : widget.onDeepDive,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: widget.isExpanding 
+                ? [AppColors.backgroundDark, AppColors.backgroundElevated]
+                : [AppColors.accentAmber, const Color(0xFFFF6B2B)],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: widget.isExpanding ? [] : [
+              BoxShadow(
+                color: AppColors.accentAmber.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.isExpanding)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentAmber),
+                  ),
+                )
+              else
+                const Icon(Icons.bolt_rounded, size: 16, color: AppColors.backgroundDark),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  widget.isExpanding ? 'BLUEPRINTING...' : 'GENERATE ATOMIC BLUEPRINT',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: widget.isExpanding ? AppColors.accentAmber : AppColors.backgroundDark,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ).animate().shimmer(
+        delay: widget.isExpanding ? 0.ms : 1000.ms, 
+        duration: widget.isExpanding ? 1000.ms : 1500.ms
+      );
+    }
+
+    final hubButton = GestureDetector(
       onTap: () => context.push('/topic-resources/${widget.task.topicId}'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -250,7 +321,9 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.hub_rounded, size: 14, color: AppColors.accentAmber),
+            const ExcludeSemantics(
+              child: Icon(Icons.hub_rounded, size: 14, color: AppColors.accentAmber),
+            ),
             const SizedBox(width: 8),
             Text(
               'Explore Learning Hub',
@@ -265,7 +338,14 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
           ],
         ),
       ),
-    ).animate().fadeIn(delay: 300.ms).shimmer(delay: 2000.ms, duration: 1500.ms, color: Colors.white12);
+    );
+    
+    // flutter-improving-accessibility: explicitly mark this container as a button 
+    return Semantics(
+      button: true,
+      label: 'Explore Learning Hub',
+      child: hubButton.animate().fadeIn(delay: 300.ms).shimmer(delay: 2000.ms, duration: 1500.ms, color: Colors.white12),
+    );
   }
 
   Widget _buildContent(String typeLabel, Color typeColor) {
@@ -285,8 +365,33 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
                 style: AppTextStyles.tagStyle.copyWith(color: typeColor),
               ),
             ),
+            if (widget.moduleName != null) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Text(
+                    widget.moduleName!.toUpperCase(),
+                    style: AppTextStyles.tagStyle.copyWith(
+                      color: AppColors.textMuted,
+                      fontSize: 8,
+                      letterSpacing: 0.5,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(width: 8),
-            Icon(Icons.timer_outlined, size: 12, color: AppColors.textMuted),
+            const ExcludeSemantics(
+              child: Icon(Icons.timer_outlined, size: 12, color: AppColors.textMuted),
+            ),
             const SizedBox(width: 3),
             Text(
               '~${widget.task.estimatedMinutes} min',
@@ -419,15 +524,20 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
                 width: 2,
               ),
             ),
-            child: (widget.isCompleted || value > 0.5)
-                ? const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 18)
-                    .animate()
-                    .scale(
-                      duration: 200.ms,
-                      curve: Curves.elasticOut,
-                    )
-                : Icon(Icons.circle_outlined, size: 14, color: AppColors.textMuted.withOpacity(0.3)),
+            // flutter-improving-accessibility: Semantics for custom checkbox 
+            child: Semantics(
+              checked: widget.isCompleted || value > 0.5,
+              label: 'Task completion status',
+              child: (widget.isCompleted || value > 0.5)
+                  ? const Icon(Icons.check_rounded,
+                      color: Colors.white, size: 18)
+                      .animate()
+                      .scale(
+                        duration: 200.ms,
+                        curve: Curves.elasticOut,
+                      )
+                  : Icon(Icons.circle_outlined, size: 14, color: AppColors.textMuted.withOpacity(0.3)),
+            ),
           );
         },
       ),

@@ -61,6 +61,31 @@ class TopicModel extends HiveObject {
   @HiveField(18)
   late List<String> resources; // JSON-encoded curated resources
 
+  @HiveField(19)
+  late List<String> prerequisites; // DAG dependencies
+
+  @HiveField(20)
+  late double weight; // Importance 0.0 - 1.0
+
+  @HiveField(21)
+  late double retentionScore; // 0.0 - 100.0
+
+  @HiveField(22)
+  late Map<String, int> errorTypes; // e.g. {"conceptual": 1, "careless": 2}
+
+  @HiveField(23)
+  late bool isBlueprintGenerated;
+
+  // ── FSRS Mathematical Parameters ──
+  @HiveField(24)
+  late double stability; // Interval growth rate
+
+  @HiveField(25)
+  late double difficulty; // How inherently hard the topic is
+
+  @HiveField(26)
+  late int sortOrder; // Logical sequence index
+
   TopicModel({
     required this.id,
     required this.goalId,
@@ -81,10 +106,20 @@ class TopicModel extends HiveObject {
     this.moduleName,
     this.isBoss = false,
     List<String>? resources,
+    List<String>? prerequisites,
+    this.weight = 0.5,
+    this.retentionScore = 0.0,
+    Map<String, int>? errorTypes,
+    this.isBlueprintGenerated = false,
+    this.stability = 0.0,
+    this.difficulty = 0.0,
+    this.sortOrder = 0,
   })  : scheduledRevisions = scheduledRevisions ?? [],
         completedRevisions = completedRevisions ?? [],
         subTopics = subTopics ?? [],
-        resources = resources ?? [];
+        resources = resources ?? [],
+        prerequisites = prerequisites ?? [],
+        errorTypes = errorTypes ?? {};
 
   bool get isLearned => learnedOnDay > 0;
   bool get isStruggling => incorrectAnswers >= 3;

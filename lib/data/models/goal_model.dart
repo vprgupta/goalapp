@@ -10,6 +10,8 @@ enum GoalStatus {
   completed,
   @HiveField(2)
   paused,
+  @HiveField(3)
+  roadmap,
 }
 
 @HiveType(typeId: 1)
@@ -41,6 +43,9 @@ class GoalModel extends HiveObject {
   @HiveField(8)
   late Map<String, double> topicStrengths; // topicId -> 0.0–1.0
 
+  @HiveField(9)
+  late bool isDraft; // Marks if the generation failed/crashed midway
+
   GoalModel({
     required this.id,
     required this.name,
@@ -51,6 +56,7 @@ class GoalModel extends HiveObject {
     this.status = GoalStatus.active,
     List<String>? topicIds,
     Map<String, double>? topicStrengths,
+    this.isDraft = false,
   })  : topicIds = topicIds ?? [],
         topicStrengths = topicStrengths ?? {};
 

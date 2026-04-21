@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Localization (flutter-localizing-apps skill)
+  flutter_localizations:
+    sdk: flutter
 
   # State Management
   flutter_riverpod: ^2.5.1
@@ -25,7 +28,7 @@ dependencies:
 
   # Utilities
   uuid: ^4.4.0
-  intl: ^0.19.0
+  intl: ^0.20.2
   youtube_explode_dart: ^2.2.2
   url_launcher: ^6.3.0
   cached_network_image: ^3.3.1
@@ -37,16 +40,23 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.6
+  file_picker: ^11.0.2
+  syncfusion_flutter_pdf: ^33.1.49
+  home_widget: ^0.9.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
+  mocktail: ^1.0.3
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
   build_runner: ^2.4.9
   hive_generator: ^2.0.1
 
 flutter:
+  generate: true  # Required for flutter-localizing-apps l10n code generation
   uses-material-design: true
   fonts:
     - family: Outfit

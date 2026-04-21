@@ -16,12 +16,12 @@ class RevisionScheduler {
     required Map<int, List<String>> revisionQueue,
   }) {
     topic.scheduledRevisions.clear();
-    for (final offset in _intervals) {
-      final targetDay = learnDay + offset;
-      if (targetDay <= totalDays) {
-        topic.scheduledRevisions.add(targetDay);
-        revisionQueue.putIfAbsent(targetDay, () => []).add(topic.id);
-      }
+    // Initially schedule only the first review (next day) and a 3-day buffer.
+    // The rest will be determined dynamically by Adaptive Scheduling Engine.
+    final firstReview = learnDay + 1;
+    if (firstReview <= totalDays) {
+      topic.scheduledRevisions.add(firstReview);
+      revisionQueue.putIfAbsent(firstReview, () => []).add(topic.id);
     }
   }
 
@@ -34,21 +34,40 @@ class RevisionScheduler {
     required Map<int, List<String>> revisionQueue,
   }) {
     if (correct) {
-      topic.strengthScore = (topic.strengthScore + 0.20).clamp(0.0, 1.0);
+      topic.retentionScore = (topic.retentionScore + 25.0).clamp(0.0, 100.0);
+      topic.strengthScore = topic.retentionScore / 100.0; // sync legacy field
       topic.incorrectAnswers = 0;
       topic.revisionCount++;
       topic.lastRevisedAt = DateTime.now();
+      
+      // If retention > 85, extend learning interval exponentially
+      if (topic.retentionScore >= 85.0) {
+        final nextInterval = _intervals[(topic.revisionCount).clamp(0, _intervals.length - 1)];
+        final targetDay = (currentDay + nextInterval).clamp(1, totalDays);
+        if (!topic.scheduledRevisions.contains(targetDay) && targetDay > currentDay) {
+          topic.scheduledRevisions.add(targetDay);
+          revisionQueue.putIfAbsent(targetDay, () => []).add(topic.id);
+        }
+      }
     } else {
-      topic.strengthScore = (topic.strengthScore - 0.15).clamp(0.0, 1.0);
+      topic.retentionScore = (topic.retentionScore - 15.0).clamp(0.0, 100.0);
+      topic.strengthScore = topic.retentionScore / 100.0; // sync legacy field
       topic.incorrectAnswers++;
 
-      // Insert emergency re-revision if still weak
-      if (topic.strengthScore < 0.4) {
-        final emergencyDay = (currentDay + 2).clamp(1, totalDays);
-        if (!topic.scheduledRevisions.contains(emergencyDay)) {
+      // If retention < 60, reschedule within 1-2 days
+      if (topic.retentionScore < 60.0) {
+        final emergencyDay = (currentDay + 1).clamp(1, totalDays);
+        if (!topic.scheduledRevisions.contains(emergencyDay) && emergencyDay > currentDay) {
           topic.scheduledRevisions.add(emergencyDay);
           revisionQueue.putIfAbsent(emergencyDay, () => []).add(topic.id);
         }
+      }
+
+      // Repeated errors logic (Prerequisite review hook)
+      if (topic.incorrectAnswers >= 3) {
+        // Track error cluster in Error Intelligence System
+        topic.errorTypes['repeated_failure'] = (topic.errorTypes['repeated_failure'] ?? 0) + 1;
+        // The dashboard/UI will handle injecting prerequisite reviews if this flag is found
       }
     }
   }

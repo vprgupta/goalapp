@@ -94,7 +94,22 @@ class GoalRepository {
     return HiveService.topicsBox.values
         .where((t) => t.goalId == goalId)
         .toList()
-      ..sort((a, b) => a.learnedOnDay.compareTo(b.learnedOnDay));
+      ..sort((a, b) {
+        // 1. If both are unlearned (Roadmap mode), use sortOrder
+        if (a.learnedOnDay == 0 && b.learnedOnDay == 0) {
+          return a.sortOrder.compareTo(b.sortOrder);
+        }
+        // 2. If one is learned, learned comes after unlearned in the database? 
+        // Actually, learnedOnDay > 0 means it's scheduled.
+        // We want: Day 1, Day 2, ..., Day N, then anything unscheduled.
+        if (a.learnedOnDay != b.learnedOnDay) {
+          if (a.learnedOnDay == 0) return 1;
+          if (b.learnedOnDay == 0) return -1;
+          return a.learnedOnDay.compareTo(b.learnedOnDay);
+        }
+        // 3. Fallback to sortOrder for topics scheduled on the same day
+        return a.sortOrder.compareTo(b.sortOrder);
+      });
   }
 
   // ── Day Plans ──────────────────────────────────────────

@@ -22,9 +22,14 @@ class TaskDistributor {
     final goalId = goal.id;
 
     // Trim topics to a realistic count (ensure enough days for revision too)
-    // Target: max 60% of days used for learning (40% headroom for revisions)
-    final maxTopics = (totalDays * 0.65).floor().clamp(1, topics.length);
+    // Target: max 85% of days used for learning (15% headroom for final review)
+    final maxTopics = (totalDays * 0.85).floor().clamp(1, topics.length);
     final activeTopics = topics.sublist(0, maxTopics);
+
+    // Calculate dynamic pacing
+    // We want to spread these topics across ~80% of total days to avoid early burnout
+    final learningDaysGoal = (totalDays * 0.80).ceil().clamp(1, totalDays);
+    final double topicsPerDay = activeTopics.length / learningDaysGoal;
 
     // Revision queue: {dayNumber -> [topicId]}
     final Map<int, List<String>> revisionQueue = {};
@@ -39,6 +44,7 @@ class TaskDistributor {
       );
     });
 
+    double topicsAccrued = 0;
     int topicPointer = 0;
 
     for (int d = 1; d <= totalDays; d++) {
@@ -79,11 +85,16 @@ class TaskDistributor {
         revCount++;
       }
 
-      // ── Step 2: Fill learn tasks (up to 2, or until topic list exhausted) ─
+      // ── Step 2: Fill learn tasks based on dynamic pace ──────────────
+      // Calculate how many topics should be learned by this day
+      topicsAccrued += topicsPerDay;
+      final int targetTopicsLearned = topicsAccrued.floor();
+      
       int learnCount = 0;
+      // We allow at least 1 topic if we are behind the target, up to maxTasksPerDay
       while (
         topicPointer < activeTopics.length &&
-        learnCount < _maxLearnPerDay &&
+        topicPointer < targetTopicsLearned &&
         tasks.length < _maxTasksPerDay
       ) {
         final topic = activeTopics[topicPointer];
@@ -112,6 +123,33 @@ class TaskDistributor {
 
         topicPointer++;
         learnCount++;
+      }
+
+      // Fallback: If we have NO tasks at all and haven't finished the syllabus, 
+      // let's grab at least one topic to keep things moving.
+      if (tasks.isEmpty && topicPointer < activeTopics.length) {
+        final topic = activeTopics[topicPointer];
+        tasks.add(
+          TaskModel(
+            id: _uuid.v4(),
+            dayPlanId: dayId,
+            type: TaskType.learn,
+            topicId: topic.id,
+            title: topic.name,
+            description: _buildLearnDescription(topic),
+            estimatedMinutes: topic.estimatedLearnMinutes,
+            sortOrder: sortOrder++,
+            videoId: topic.videoId,
+            startSeconds: topic.startSeconds,
+          ),
+        );
+        RevisionScheduler.scheduleRevisions(
+          topic: topic,
+          learnDay: d,
+          totalDays: totalDays,
+          revisionQueue: revisionQueue,
+        );
+        topicPointer++;
       }
 
       // ── Step 3: If still no tasks today (revision-only or gap day) ──

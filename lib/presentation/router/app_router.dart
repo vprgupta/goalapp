@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../screens/onboarding/goal_setup_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/dashboard/roadmap_detail_screen.dart';
+import '../screens/dashboard/main_screen.dart';
 import '../screens/goal_list/goal_list_screen.dart';
 import '../screens/task/recall_screen.dart';
 import '../screens/stats/stats_screen.dart';
@@ -35,15 +37,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/onboard';
       }
 
-      // 2. If goals exist but no selection, force /goals
-      if (!hasSelection) {
-        if (loc == '/goals' || loc == '/onboard') return null;
-        return '/goals';
-      }
-
-      // 3. Default redirect from root to dashboard
-      if (loc == '/') return '/dashboard';
-
+      // No forced redirects if goals exist, let the MainScreen handle the tabs
       return null;
     },
   routes: [
@@ -52,16 +46,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       builder: (ctx, state) => const GoalSetupScreen(),
     ),
     GoRoute(
-      path: '/dashboard',
-      builder: (ctx, state) => const DashboardScreen(),
-    ),
-    GoRoute(
-      path: '/goals',
-      builder: (ctx, state) => const GoalListScreen(),
+      path: '/',
+      builder: (ctx, state) => const MainScreen(),
     ),
     GoRoute(
       path: '/create',
       builder: (ctx, state) => const GoalSetupScreen(),
+    ),
+    GoRoute(
+      path: '/roadmap/:roadmapId',
+      builder: (ctx, state) {
+        final id = state.pathParameters['roadmapId']!;
+        return RoadmapDetailScreen(roadmapId: id);
+      },
     ),
     GoRoute(
       path: '/recall',

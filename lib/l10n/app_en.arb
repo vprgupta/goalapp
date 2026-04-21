@@ -1,0 +1,80 @@
+{
+  "@@locale": "en",
+
+  "appName": "GoalApp",
+  "@appName": { "description": "The application name" },
+
+  "tabRoadmaps": "Roadmaps",
+  "@tabRoadmaps": { "description": "Bottom nav label for roadmaps tab" },
+
+  "tabActiveGoal": "Active Goal",
+  "@tabActiveGoal": { "description": "Bottom nav label for active goal tab" },
+
+  "todaysTasks": "Today's Tasks",
+  "@todaysTasks": { "description": "Section header for daily task list" },
+
+  "taskTypeLearn": "LEARN",
+  "@taskTypeLearn": { "description": "Badge for learn-type tasks" },
+
+  "taskTypeRevise": "REVISE",
+  "@taskTypeRevise": { "description": "Badge for revision tasks" },
+
+  "designNewRoadmap": "Design New Roadmap",
+  "@designNewRoadmap": { "description": "FAB label on roadmap list" },
+
+  "goalCompleteTitle": "Goal Complete!",
+  "@goalCompleteTitle": { "description": "Title shown on goal completion screen" },
+
+  "startNewGoal": "Start a New Goal",
+  "@startNewGoal": { "description": "Button on goal complete screen" },
+
+  "exploreHub": "Explore Learning Hub",
+  "@exploreHub": { "description": "Button to open topic resource hub" },
+
+  "generateBlueprint": "GENERATE ATOMIC BLUEPRINT",
+  "@generateBlueprint": { "description": "Button to trigger deep-dive blueprint" },
+
+  "blueprinting": "BLUEPRINTING...",
+  "@blueprinting": { "description": "Loading state for blueprint generation" },
+
+  "focusOnRecall": "Focus on Recall",
+  "@focusOnRecall": { "description": "Hint shown on revision tasks" },
+
+  "keyConcepts": "KEY CONCEPTS",
+  "@keyConcepts": { "description": "Section label for sub-topic chips" },
+
+  "vaultEmpty": "Vault is Empty",
+  "@vaultEmpty": { "description": "Empty state title on roadmap list" },
+
+  "vaultEmptySubtitle": "Architect your first learning\nroadmap with AI intelligence.",
+  "@vaultEmptySubtitle": { "description": "Empty state subtitle on roadmap list" },
+
+  "archiveRoadmap": "Archive Roadmap?",
+  "@archiveRoadmap": { "description": "Delete confirmation dialog title" },
+
+  "deleteConfirm": "DELETE",
+  "@deleteConfirm": { "description": "Confirm delete button label" },
+
+  "cancel": "CANCEL",
+  "@cancel": { "description": "Cancel button label" },
+
+  "blueprintReady": "BLUEPRINT READY",
+  "@blueprintReady": { "description": "Status tag on roadmap card" },
+
+  "enterGoalHint": "e.g. Learn Java, Master SQL...",
+  "@enterGoalHint": { "description": "Hint text for goal name input" },
+
+  "goalValidatorEmpty": "Please enter a learning goal",
+  "@goalValidatorEmpty": { "description": "Validation error when goal is empty" },
+
+  "goalValidatorTooShort": "Goal must be at least 3 characters",
+  "@goalValidatorTooShort": { "description": "Validation error when goal is too short" },
+
+  "widgetTasksToday": "{count, plural, =0{No tasks today} =1{1 task today} other{{count} tasks today}}",
+  "@widgetTasksToday": {
+    "description": "Home screen widget task count",
+    "placeholders": {
+      "count": { "type": "num", "format": "compact" }
+    }
+  }
+}

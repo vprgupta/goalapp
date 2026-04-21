@@ -5,30 +5,61 @@ import '../../data/models/topic_model.dart';
 import '../../data/models/day_plan_model.dart';
 import '../../data/repositories/goal_repository.dart';
 import '../../domain/engines/topic_generator.dart';
+import 'generation_provider.dart';
+import 'service_providers.dart';
 import '../../domain/engines/task_distributor.dart';
 import '../../domain/engines/revision_scheduler.dart';
 
+// ── Goal Creation State ────────────────────────────────────────────────────────
+/// Immutable state for the goal creation flow (per managing-state skill: expose
+/// structured isLoading + error from the ViewModel instead of bare booleans).
+class GoalCreationState {
+  final bool isCreating;
+  final String? error;
+
+  const GoalCreationState({this.isCreating = false, this.error});
+
+  GoalCreationState copyWith({bool? isCreating, String? error}) {
+    return GoalCreationState(
+      isCreating: isCreating ?? this.isCreating,
+      error: error,
+    );
+  }
+
+  GoalCreationState get loading => copyWith(isCreating: true, error: null);
+  GoalCreationState get idle => const GoalCreationState();
+}
+
 const _uuid = Uuid();
+
+// ── Search Provider ─────────────────────────────────────────────────────────
+final goalSearchProvider = StateProvider<String>((ref) => "");
 
 // ── Repository Provider ──────────────────────────────────────────────────────
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
   return GoalRepository();
 });
 
-// ── Active Goal Provider ─────────────────────────────────────────────────────
-final activeGoalProvider = StateNotifierProvider<ActiveGoalNotifier, GoalModel?>(
-  (ref) => ActiveGoalNotifier(ref.read(goalRepositoryProvider)),
-);
+// ── Goal List Provider (The source of truth for reactivity) ──────────────────
+final goalListProvider = StateNotifierProvider<GoalListNotifier, List<GoalModel>>((ref) {
+  return GoalListNotifier(ref.read(goalRepositoryProvider), ref);
+});
 
-class ActiveGoalNotifier extends StateNotifier<GoalModel?> {
+class GoalListNotifier extends StateNotifier<List<GoalModel>> {
   final GoalRepository _repo;
+  final Ref _ref;
 
-  ActiveGoalNotifier(this._repo) : super(null) {
+  GoalListNotifier(this._repo, this._ref) : super([]) {
     _load();
   }
 
+  // Track creation state so the UI can react without local booleans
+  GoalCreationState _creationState = const GoalCreationState();
+  GoalCreationState get creationState => _creationState;
+  void _setCreation(GoalCreationState s) => _creationState = s;
+
   void _load() {
-    state = _repo.getActiveGoal();
+    state = _repo.getAllGoals();
   }
 
   /// Sets the selected goal ID and refreshes state.
@@ -37,13 +68,14 @@ class ActiveGoalNotifier extends StateNotifier<GoalModel?> {
     _load();
   }
 
-  /// Creates a brand-new goal, generates topics and day plans.
+  /// Creates a brand-new Roadmap (Syllabus), does NOT distribute tasks yet.
   Future<void> createGoal({
     required String name,
     required String level,
     required int totalDays,
     List<Map<String, dynamic>>? customMetadata,
   }) async {
+    _setCreation(_creationState.loading);
     final goalId = _uuid.v4();
     final goal = GoalModel(
       id: goalId,
@@ -51,36 +83,132 @@ class ActiveGoalNotifier extends StateNotifier<GoalModel?> {
       level: level,
       totalDays: totalDays,
       createdAt: DateTime.now(),
+      status: GoalStatus.roadmap,
     );
 
     // 1. Generate topics
-    final topics = customMetadata != null
-        ? TopicGenerator.generateFromMetadata(
-            goalId: goalId,
-            metadata: customMetadata,
-            totalDays: totalDays,
-          )
-        : TopicGenerator.generate(
-            goalId: goalId,
-            goalName: name,
-            level: level,
-            totalDays: totalDays,
-          );
+    List<TopicModel> topics = [];
+    
+    if (customMetadata != null) {
+      topics = TopicGenerator.generateFromMetadata(
+        goalId: goalId,
+        metadata: customMetadata,
+        totalDays: totalDays,
+      );
+    } else {
+      // Architecture fix: read injected service instead of instantiating directly
+      final aiService = _ref.read(aiServiceProvider);
+      
+      _ref.read(generationProvider.notifier).start();
+      _ref.read(generationProvider.notifier).append("--- IDENTIFYING MASTER PILLARS ---\n");
 
-    // 2. Distribute tasks across days
-    final dayPlans = TaskDistributor.distribute(goal: goal, topics: topics);
+      // Stage 1: Get Master Pillars (Discovery)
+      final masterPillars = await aiService.generateSyllabus(
+        goal: name,
+        level: level,
+        days: totalDays,
+        onProgress: (chunk) => _ref.read(generationProvider.notifier).append(chunk),
+      );
 
-    // 3. Assign topic IDs to goal
+      _ref.read(generationProvider.notifier).append("\n\n--- MASTER ROADMAP SECURED ---\n");
+      _ref.read(generationProvider.notifier).complete();
+
+      // Ensure chronological ordering
+      TopicGenerator.sortMetadata(masterPillars);
+
+      int sortIdx = 0;
+      topics = masterPillars.map((pillar) {
+        final nodeId = _uuid.v4(); // Unique ID for the pillar
+        return TopicModel(
+          id: '${goalId}_$nodeId',
+          goalId: goalId,
+          name: pillar['title'] as String,
+          tier: int.tryParse(pillar['rank']?.toString() ?? '1') ?? 1,
+          estimatedLearnMinutes: (pillar['duration_sec'] as num? ?? 3600).toInt() ~/ 60,
+          moduleName: pillar['chapter'] as String,
+          isBoss: pillar['is_boss'] as bool? ?? false,
+          weight: 0.8,
+          prerequisites: [],
+          subTopics: (pillar['subtopics'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+          isBlueprintGenerated: false,
+          sortOrder: sortIdx++, // Fixed: Assigning sort index!
+        );
+      }).toList();
+    }
+
+    // 2. Assign topic IDs to roadmap
     goal.topicIds = topics.map((t) => t.id).toList();
     goal.topicStrengths = {for (final t in topics) t.id: 0.0};
 
-    // 4. Save everything
+    // 3. Save roadmap and its pillars
     await _repo.saveGoal(goal);
     await _repo.saveTopics(topics);
-    await _repo.saveDayPlans(dayPlans);
     
-    // Automatically switch to the new goal
-    await switchGoal(goalId);
+    _setCreation(_creationState.idle);
+    // Refresh the list
+    _load();
+  }
+
+  /// Retrieves a specific phase from a Roadmap and converts it into a scheduled Action Plan.
+  Future<void> importPhaseToActiveGoal(TopicModel pillar, int studyDays) async {
+    // 1. Get all topics generated for this roadmap
+    final allRoadmapTopics = _repo.getTopicsForGoal(pillar.goalId);
+    
+    // We want the pillar itself, plus any atomic topics belonging to it
+    final syllabusTopics = allRoadmapTopics
+        .where((t) => t.id == pillar.id || t.moduleName == pillar.name)
+        .toList();
+
+    // 2. Create the new Active Goal (The Sprint)
+    final newGoalId = _uuid.v4();
+    final activeGoal = GoalModel(
+      id: newGoalId,
+      name: pillar.name,
+      level: 'intermediate',
+      totalDays: studyDays, // User chooses how many days they want to spend on this phase
+      createdAt: DateTime.now(),
+      status: GoalStatus.active,
+    );
+
+    // Fetch parent roadmap to inherit its difficulty level
+    final parentRoadmap = _repo.getGoal(pillar.goalId);
+    if (parentRoadmap != null) {
+      activeGoal.level = parentRoadmap.level;
+    }
+
+    // 3. Clone the topics to the new Goal (so the original Roadmap remains intact)
+    int sortIdx = 0;
+    final List<TopicModel> clonedTopics = syllabusTopics.map((t) {
+      return TopicModel(
+        id: '${newGoalId}_${_uuid.v4()}', // Generate fresh ID
+        goalId: newGoalId,
+        name: t.name,
+        tier: t.tier,
+        estimatedLearnMinutes: t.estimatedLearnMinutes,
+        moduleName: t.moduleName,
+        isBoss: t.isBoss,
+        weight: t.weight,
+        prerequisites: [], // Removed for the sprint to allow flexible scheduling
+        subTopics: List.from(t.subTopics),
+        isBlueprintGenerated: t.isBlueprintGenerated,
+        sortOrder: sortIdx++, // Maintain sequence
+      );
+    }).toList();
+
+    // 4. Run the Task Distributor (this is where the schedule is created!)
+    final dayPlans = TaskDistributor.distribute(goal: activeGoal, topics: clonedTopics);
+
+    // 5. Update goal state
+    activeGoal.topicIds = clonedTopics.map((t) => t.id).toList();
+    activeGoal.topicStrengths = {for (final t in clonedTopics) t.id: 0.0};
+
+    // 6. Save everything to the database
+    await _repo.saveGoal(activeGoal);
+    await _repo.saveTopics(clonedTopics);
+    await _repo.saveDayPlans(dayPlans);
+
+    // 7. Auto-switch to this new active sprint
+    await switchGoal(newGoalId);
   }
 
   /// Deletes a specific goal and refreshes state if it was the active one.
@@ -89,21 +217,54 @@ class ActiveGoalNotifier extends StateNotifier<GoalModel?> {
     _load();
   }
 
-  /// Deletes the active goal and resets.
-  Future<void> deleteGoal() async {
-    if (state == null) return;
-    await deleteGoalById(state!.id);
-  }
-
   void refresh() {
     _load();
   }
 }
 
-// ── All Goals Provider ───────────────────────────────────────────────────────
-final allGoalsProvider = Provider<List<GoalModel>>((ref) {
-  ref.watch(activeGoalProvider); // recompute when goal changes
-  return ref.read(goalRepositoryProvider).getAllGoals();
+// ── Active Goal Provider (Computed focus) ────────────────────────────────────
+final activeGoalProvider = Provider<GoalModel?>((ref) {
+  final list = ref.watch(goalListProvider);
+  final repo = ref.read(goalRepositoryProvider);
+  final selectedId = repo.getSelectedGoalId();
+  
+  if (selectedId == null) {
+    if (list.isEmpty) return null;
+    // Fallback to first active goal if none selected
+    try {
+      return list.firstWhere((g) => g.status == GoalStatus.active);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  try {
+    return list.firstWhere((g) => g.id == selectedId);
+  } catch (_) {
+    return null;
+  }
+});
+
+// ── Roadmaps Provider (List of blueprints) ───────────────────────────────────
+final roadmapsProvider = Provider<List<GoalModel>>((ref) {
+  final list = ref.watch(goalListProvider);
+  final query = ref.watch(goalSearchProvider).toLowerCase();
+  
+  final filtered = list.where((g) => g.status == GoalStatus.roadmap).toList();
+  if (query.isEmpty) return filtered;
+  
+  return filtered.where((g) => g.name.toLowerCase().contains(query)).toList();
+});
+
+// ── Active Goals Provider (Sprints in progress) ──────────────────────────────
+final activeGoalsProvider = Provider<List<GoalModel>>((ref) {
+  final list = ref.watch(goalListProvider);
+  final query = ref.watch(goalSearchProvider).toLowerCase();
+
+  final filtered = list.where((g) => g.status == GoalStatus.active || g.status == GoalStatus.completed).toList();
+  if (query.isEmpty) return filtered;
+
+  return filtered.where((g) => g.name.toLowerCase().contains(query)).toList();
 });
 
 // ── Current Day Plan Provider ────────────────────────────────────────────────

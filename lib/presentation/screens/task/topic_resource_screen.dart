@@ -151,10 +151,15 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
                     Positioned(
                       right: -30,
                       bottom: 0,
-                      child: Icon(
-                        _topic!.isBoss ? Icons.gite_rounded : Icons.menu_book_rounded,
-                        size: 160,
-                        color: AppColors.accentAmber.withOpacity(0.04),
+                      // Hero destination: matches 'topic_icon_${topicId}' tag
+                      // set in task_card_widget.dart — flies from the task card icon.
+                      child: Hero(
+                        tag: 'topic_icon_${widget.topicId}',
+                        child: Icon(
+                          _topic!.isBoss ? Icons.gite_rounded : Icons.menu_book_rounded,
+                          size: 160,
+                          color: AppColors.accentAmber.withOpacity(0.04),
+                        ),
                       ),
                     ),
                     SafeArea(

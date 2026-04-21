@@ -22,6 +22,7 @@ class TopicGenerator {
         name: data['name'] as String,
         tier: data['tier'] as int,
         estimatedLearnMinutes: data['minutes'] as int,
+        sortOrder: idx,
       );
     }).toList();
   }
@@ -31,10 +32,14 @@ class TopicGenerator {
     required List<Map<String, dynamic>> metadata,
     required int totalDays,
   }) {
+    // 0. Sort metadata chronologically if possible
+    final sortedMetadata = List<Map<String, dynamic>>.from(metadata);
+    sortMetadata(sortedMetadata);
+
     final List<TopicModel> result = [];
     
     // 1. Calculate TOTAL duration of the entire playlist
-    final int totalDurationSec = metadata.fold(0, (sum, item) => sum + (item['duration_sec'] as int));
+    final int totalDurationSec = sortedMetadata.fold(0, (sum, item) => sum + (item['duration_sec'] as int));
     final int totalMinutes = (totalDurationSec / 60).ceil();
     
     // 2. Determine target session length (Global Average)
@@ -45,8 +50,8 @@ class TopicGenerator {
     // too short (<15m) or too long (>120m for focus)
     final int dynamicMaxMinutes = averageMinutesPerDay.clamp(15, 120);
 
-    for (int i = 0; i < metadata.length; i++) {
-      final item = metadata[i];
+    for (int i = 0; i < sortedMetadata.length; i++) {
+      final item = sortedMetadata[i];
       final String fullTitle = item['title'] as String;
       final int videoDurationSec = item['duration_sec'] as int;
       final int videoMinutes = (videoDurationSec / 60).ceil();
@@ -78,6 +83,7 @@ class TopicGenerator {
           subTopics: subTopics,
           moduleName: chapter,
           isBoss: isBoss,
+          sortOrder: i,
         ));
       } else {
         // LONG VIDEO: Split proportionally based on global average
@@ -104,11 +110,44 @@ class TopicGenerator {
             subTopics: p == 1 ? subTopics : [], // Only add subtopics to first part
             moduleName: chapter != null ? '$chapter (Part $p)' : null,
             isBoss: p == numParts ? isBoss : false, // Only last part is the boss
+            sortOrder: i * 100 + p, // Spread out indices to allow parts within a group
           ));
         }
       }
     }
     return result;
+  }
+
+  /// Sorts metadata based on Phase numbering (e.g. "PHASE 1", "Phase 2") 
+  /// or leading numbers in titles.
+  static void sortMetadata(List<Map<String, dynamic>> metadata) {
+    metadata.sort((a, b) {
+      final aPhase = _extractSequenceIndex(a['chapter'] as String? ?? a['title'] as String? ?? '');
+      final bPhase = _extractSequenceIndex(b['chapter'] as String? ?? b['title'] as String? ?? '');
+      
+      if (aPhase != null && bPhase != null) {
+        return aPhase.compareTo(bPhase);
+      }
+      return 0; // Maintain original order if no Phase info found
+    });
+  }
+
+  static int? _extractSequenceIndex(String text) {
+    // 1. Look for "PHASE X" or "PART X"
+    final phaseRegex = RegExp(r'(?:PHASE|PART|PH)\s*(\d+)', caseSensitive: false);
+    final match = phaseRegex.firstMatch(text);
+    if (match != null) {
+      return int.tryParse(match.group(1) ?? '');
+    }
+
+    // 2. Look for leading numbers "1. Introduction" or "01 - Basics"
+    final leadingNumRegex = RegExp(r'^\s*(\d+)[\.\-\s]');
+    final leadingMatch = leadingNumRegex.firstMatch(text);
+    if (leadingMatch != null) {
+      return int.tryParse(leadingMatch.group(1) ?? '');
+    }
+
+    return null;
   }
 
   static int _mapRankToTier(String? rank) {
