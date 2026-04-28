@@ -1,4 +1,0 @@
-ERROR|COMPILE_TIME_ERROR|ARGUMENT_TYPE_NOT_ASSIGNABLE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\core\\theme\\app_theme.dart|49|18|288|The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'. 
-INFO|HINT|DEPRECATED_MEMBER_USE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\core\\theme\\app_theme.dart|18|9|10|'background' is deprecated and shouldn't be used. Use surface instead. This feature was deprecated after v3.18.0-0.1.pre.
-INFO|HINT|DEPRECATED_MEMBER_USE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\core\\theme\\app_theme.dart|22|9|12|'onBackground' is deprecated and shouldn't be used. Use onSurface instead. This feature was deprecated after v3.18.0-0.1.pre.
-INFO|LINT|PREFER_CONST_CONSTRUCTORS|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\core\\theme\\app_theme.dart|25|18|546|Use 'const' with the constructor to improve performance.

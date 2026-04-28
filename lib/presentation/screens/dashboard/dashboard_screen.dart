@@ -80,8 +80,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
 
     if (goal == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: AppColors.backgroundDark,
+        body: _buildNoSprintScreen(context),
       );
     }
 
@@ -159,6 +160,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     )
                   else
                     SliverToBoxAdapter(child: _buildEmptyState()),
+                  // Safety button: shows when all tasks done but overlay didn't fire
+                  if (dayPlan != null && dayPlan.allTasksDone && !_showCompleteOverlay)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                        child: ElevatedButton.icon(
+                          onPressed: _onDayAdvance,
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                          label: Text(
+                            dayPlan.dayNumber >= goal.totalDays
+                                ? 'Complete Sprint 🎉'
+                                : 'Continue to Day ${dayPlan.dayNumber + 1} →',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accentAmber,
+                            foregroundColor: AppColors.backgroundDark,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            textStyle: AppTextStyles.titleMedium
+                                .copyWith(fontWeight: FontWeight.w800),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2),
+                      ),
+                    ),
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],
               ),
@@ -280,6 +306,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+
+  /// No active goal — guide the user to create/import one
+  Widget _buildNoSprintScreen(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  color: AppColors.accentAmber.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: AppColors.accentAmber.withOpacity(0.3)),
+                ),
+                child: const Icon(Icons.rocket_launch_rounded,
+                    size: 40, color: AppColors.accentAmber),
+              ),
+              const SizedBox(height: 24),
+              Text('No Active Sprint',
+                  style: AppTextStyles.headlineLarge,
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text(
+                'Start a phase from your Roadmap Library to begin your daily learning plan.',
+                style: AppTextStyles.bodyMedium
+                    .copyWith(color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => context.push('/goals'),
+                  icon: const Icon(Icons.collections_bookmark_rounded),
+                  label: const Text('Open Roadmap Library'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentAmber,
+                    foregroundColor: AppColors.backgroundDark,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: AppTextStyles.titleMedium
+                        .copyWith(fontWeight: FontWeight.w800),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => context.push('/create'),
+                child: Text('Design new roadmap',
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: AppColors.textSecondary)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMotivationBanner(dynamic dayPlan) {
     if (dayPlan == null) return const SizedBox.shrink();
     final pending = dayPlan.pendingCount;
@@ -310,19 +401,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .fadeIn(delay: 100.ms, duration: 400.ms);
   }
 
+  /// All day plans done but goal not completed — or day plans exhausted
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(40),
+        padding: const EdgeInsets.all(32),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.celebration_rounded,
-                size: 64, color: AppColors.accentAmber),
-            const SizedBox(height: 16),
-            Text('All caught up!', style: AppTextStyles.headlineMedium),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.accentGreen.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: AppColors.accentGreen.withOpacity(0.3)),
+              ),
+              child: const Icon(Icons.verified_rounded,
+                  size: 36, color: AppColors.accentGreen),
+            ),
+            const SizedBox(height: 20),
+            Text('Phase Complete!',
+                style: AppTextStyles.headlineMedium,
+                textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            Text('No tasks left for today.',
-                style: AppTextStyles.bodyMedium, textAlign: TextAlign.center),
+            Text(
+              'You\'ve finished all tasks in this sprint.\nReady for the next phase?',
+              style: AppTextStyles.bodyMedium
+                  .copyWith(color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.push('/goals'),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Start Next Phase'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accentAmber,
+                  foregroundColor: AppColors.backgroundDark,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: AppTextStyles.titleMedium
+                      .copyWith(fontWeight: FontWeight.w800),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
           ],
         ),
       ),

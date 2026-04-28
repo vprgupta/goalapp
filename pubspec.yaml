@@ -35,9 +35,6 @@ dependencies:
   # Networking
   http: ^1.2.1
 
-  # AI Integration
-  google_generative_ai: ^0.4.0
-
   # Icons
   cupertino_icons: ^1.0.6
   file_picker: ^11.0.2

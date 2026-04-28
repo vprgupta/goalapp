@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -125,11 +125,193 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   @override
   Widget build(BuildContext context) {
     final isRevise = widget.task.isRevise;
-    final typeColor = isRevise ? AppColors.reviseColor : AppColors.learnColor;
-    final typeLabel = isRevise ? 'REVISE' : 'LEARN';
-    final typeIcon = isRevise
-        ? Icons.psychology_rounded
-        : Icons.menu_book_rounded;
+
+    return isRevise
+        ? _buildReviseCard()
+        : _buildLearnCard();
+  }
+
+  // â”€â”€ REVISE card â€” purple/recall focused â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  Widget _buildReviseCard() {
+    const reviseColor = Color(0xFF9B8FFF);
+    const reviseBg = Color(0xFF16132A);
+
+    return AnimatedOpacity(
+      opacity: widget.isCompleted ? 0.4 : 1.0,
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: widget.isCompleted ? AppColors.backgroundCard : reviseBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: widget.isCompleted
+                ? AppColors.borderSubtle
+                : reviseColor.withOpacity(0.35),
+          ),
+          boxShadow: widget.isCompleted
+              ? []
+              : [
+                  BoxShadow(
+                    color: reviseColor.withOpacity(0.12),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _handleTap,
+            borderRadius: BorderRadius.circular(16),
+            splashColor: reviseColor.withOpacity(0.08),
+            child: Stack(
+              children: [
+                // Left accent stripe â€” Positioned so it fills Stack height
+                Positioned(
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  child: Container(
+                    width: 4,
+                    decoration: const BoxDecoration(
+                      color: reviseColor,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        bottomLeft: Radius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+                // Content (drives Stack height)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header row
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: reviseColor.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                  color: reviseColor.withOpacity(0.4)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.psychology_rounded,
+                                    size: 10, color: reviseColor),
+                                const SizedBox(width: 4),
+                                Text('RECALL',
+                                    style: AppTextStyles.tagStyle.copyWith(
+                                      color: reviseColor,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                    )),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const ExcludeSemantics(
+                            child: Icon(Icons.timer_outlined,
+                                size: 12, color: AppColors.textMuted),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '~${widget.task.estimatedMinutes}m',
+                            style: AppTextStyles.bodySmall,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const Spacer(),
+                          _buildCheckbox(reviseColor),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.task.title,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          fontSize: 15,
+                          decoration: widget.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                          decorationColor: AppColors.textMuted,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (widget.task.recallPrompt != null) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: reviseColor.withOpacity(0.07),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: reviseColor.withOpacity(0.15)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.quiz_rounded,
+                                  size: 12, color: reviseColor),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  widget.task.recallPrompt!.prompt,
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                    color: Colors.white70,
+                                    fontStyle: FontStyle.italic,
+                                    height: 1.4,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (widget.subTopics.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _buildSubTopicChips(),
+                      ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.arrow_circle_right_outlined,
+                              size: 13, color: reviseColor),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Tap to start recall session',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: reviseColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  // â”€â”€ LEARN card â€” amber/standard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  Widget _buildLearnCard() {
+    const learnColor = AppColors.learnColor;
 
     return AnimatedOpacity(
       opacity: widget.isCompleted ? 0.45 : 1.0,
@@ -148,7 +330,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
               ? []
               : [
                   BoxShadow(
-                    color: typeColor.withOpacity(0.05),
+                    color: learnColor.withOpacity(0.05),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -159,16 +341,16 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
           child: InkWell(
             onTap: _handleTap,
             borderRadius: BorderRadius.circular(16),
-            splashColor: typeColor.withOpacity(0.08),
+            splashColor: learnColor.withOpacity(0.08),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  _buildTypeIndicator(typeColor, typeIcon),
+                  _buildTypeIndicator(learnColor, Icons.menu_book_rounded),
                   const SizedBox(width: 14),
-                  Expanded(child: _buildContent(typeLabel, typeColor)),
+                  Expanded(child: _buildContent('LEARN', learnColor)),
                   const SizedBox(width: 12),
-                  _buildCheckbox(typeColor),
+                  _buildCheckbox(learnColor),
                 ],
               ),
             ),
@@ -366,7 +548,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
               ),
             ),
             if (widget.moduleName != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Flexible(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -388,14 +570,15 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
                 ),
               ),
             ],
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             const ExcludeSemantics(
               child: Icon(Icons.timer_outlined, size: 12, color: AppColors.textMuted),
             ),
             const SizedBox(width: 3),
             Text(
-              '~${widget.task.estimatedMinutes} min',
+              '~${widget.task.estimatedMinutes}m',
               style: AppTextStyles.bodySmall,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -446,7 +629,8 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
       children: [
         Row(
           children: [
-            Icon(Icons.auto_awesome_rounded, size: 10, color: AppColors.accentTeal.withOpacity(0.8)),
+            Icon(Icons.auto_awesome_rounded,
+                size: 10, color: AppColors.accentTeal.withOpacity(0.8)),
             const SizedBox(width: 5),
             Text(
               'KEY CONCEPTS',
@@ -460,42 +644,57 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
           ],
         ),
         const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: widget.subTopics.map((topic) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundElevated,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.borderCard),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.check_circle_rounded, 
-                      size: 10, color: AppColors.accentGreen),
-                  const SizedBox(width: 6),
-                  Text(
-                    topic,
-                    style: AppTextStyles.labelSmall.copyWith(
-                      color: AppColors.textPrimary.withOpacity(0.9),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
+        // LayoutBuilder gives us the available width so each chip
+        // can be capped â€” prevents overflow for long subtopic text.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final chipMaxWidth = constraints.maxWidth * 0.88;
+            return Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: widget.subTopics.map((topic) {
+                return ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: chipMaxWidth),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundElevated,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.borderCard),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle_rounded,
+                            size: 10, color: AppColors.accentGreen),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            topic,
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.textPrimary.withOpacity(0.9),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                );
+              }).toList(),
             );
-          }).toList(),
+          },
         ),
       ],
     );

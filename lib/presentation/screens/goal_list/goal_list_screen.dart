@@ -337,11 +337,31 @@ class _RoadmapCard extends StatelessWidget {
                       const SizedBox(height: 24),
                       Row(
                         children: [
-                          _buildMetaDataPill(context, Icons.bar_chart_rounded, roadmap.level.toUpperCase(), AppColors.accentTeal),
+                          Flexible(
+                            child: _buildMetaDataPill(
+                              context,
+                              Icons.bar_chart_rounded,
+                              roadmap.level.toUpperCase(),
+                              AppColors.accentTeal,
+                              maxChars: 14,
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          _buildMetaDataPill(context, Icons.layers_outlined, '${roadmap.topicIds.length} Phases', AppColors.accentAmber),
+                          Flexible(
+                            child: _buildMetaDataPill(
+                              context,
+                              Icons.layers_outlined,
+                              '${roadmap.topicIds.length} Phases',
+                              AppColors.accentAmber,
+                            ),
+                          ),
                           const SizedBox(width: 8),
-                          _buildMetaDataPill(context, Icons.timer_outlined, '${roadmap.totalDays}d', AppColors.textSecondary),
+                          _buildMetaDataPill(
+                            context,
+                            Icons.timer_outlined,
+                            '${roadmap.totalDays}d',
+                            AppColors.textSecondary,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -370,7 +390,10 @@ class _RoadmapCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMetaDataPill(BuildContext context, IconData icon, String label, Color color) {
+  Widget _buildMetaDataPill(BuildContext context, IconData icon, String label, Color color, {int? maxChars}) {
+    final displayLabel = maxChars != null && label.length > maxChars
+        ? '${label.substring(0, maxChars)}…'
+        : label;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -381,12 +404,18 @@ class _RoadmapCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // flutter-improving-accessibility: Hide decorative sub-widgets
           ExcludeSemantics(
             child: Icon(icon, size: 12, color: color),
           ),
           const SizedBox(width: 6),
-          Text(label, style: AppTextStyles.tagStyle.copyWith(color: color, fontSize: 10)),
+          Flexible(
+            child: Text(
+              displayLabel,
+              style: AppTextStyles.tagStyle.copyWith(color: color, fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
         ],
       ),
     );

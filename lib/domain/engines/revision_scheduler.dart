@@ -4,24 +4,29 @@ import '../../data/models/task_model.dart';
 
 /// Manages spaced repetition scheduling and topic strength updates.
 class RevisionScheduler {
-  // Ebbinghaus intervals (in plan-days after learning)
-  static const List<int> _intervals = [1, 3, 7, 14];
+  // Ebbinghaus intervals by topic difficulty
+  static const List<int> _easyIntervals = [3, 7, 14];   // B rank: slower refresh
+  static const List<int> _hardIntervals = [1, 3, 7, 14]; // A/S rank: next-day + full set
 
   /// Schedule revision tasks for a topic learned on [learnDay].
-  /// Populates [revisionQueue] {dayNumber -> list of topicIds}.
+  /// [forceEarlyRevision] = true for hard (A/S rank) topics: adds next-day revision.
   static void scheduleRevisions({
     required TopicModel topic,
     required int learnDay,
     required int totalDays,
     required Map<int, List<String>> revisionQueue,
+    bool forceEarlyRevision = false,
   }) {
     topic.scheduledRevisions.clear();
-    // Initially schedule only the first review (next day) and a 3-day buffer.
-    // The rest will be determined dynamically by Adaptive Scheduling Engine.
-    final firstReview = learnDay + 1;
-    if (firstReview <= totalDays) {
-      topic.scheduledRevisions.add(firstReview);
-      revisionQueue.putIfAbsent(firstReview, () => []).add(topic.id);
+
+    final intervals = forceEarlyRevision ? _hardIntervals : _easyIntervals;
+
+    for (final interval in intervals) {
+      final targetDay = learnDay + interval;
+      if (targetDay <= totalDays) {
+        topic.scheduledRevisions.add(targetDay);
+        revisionQueue.putIfAbsent(targetDay, () => []).add(topic.id);
+      }
     }
   }
 
@@ -42,8 +47,8 @@ class RevisionScheduler {
       
       // If retention > 85, extend learning interval exponentially
       if (topic.retentionScore >= 85.0) {
-        final nextInterval = _intervals[(topic.revisionCount).clamp(0, _intervals.length - 1)];
-        final targetDay = (currentDay + nextInterval).clamp(1, totalDays);
+        final nextInterval = _easyIntervals[(topic.revisionCount).clamp(0, _easyIntervals.length - 1)];
+        final targetDay = (currentDay + nextInterval).clamp(1, totalDays) as int;
         if (!topic.scheduledRevisions.contains(targetDay) && targetDay > currentDay) {
           topic.scheduledRevisions.add(targetDay);
           revisionQueue.putIfAbsent(targetDay, () => []).add(topic.id);
@@ -81,6 +86,13 @@ class RevisionScheduler {
     // Exponential decay model: strength × e^(-0.05 × days)
     final decay = 0.05 * daysSinceLastRevision;
     topic.strengthScore = (topic.strengthScore - decay).clamp(0.0, 1.0);
+  }
+
+  /// Estimated revision time in minutes based on current strength score.
+  static int reviseEstimate(TopicModel topic) {
+    if (topic.strengthScore > 0.7) return 8;
+    if (topic.strengthScore > 0.4) return 12;
+    return 18; // weak topic needs full session
   }
 
   /// Build a RecallPrompt for a topic.

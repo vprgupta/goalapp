@@ -63,13 +63,32 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
     setState(() {
       _topic = topic;
       _isLoading = true;
-      if (!forceRefresh && topic.resources.isNotEmpty) {
-        _resources = topic.resources.map((e) => Map<String, String>.from(jsonDecode(e))).toList();
-        _isLoading = false;
-      }
     });
 
-    if (_resources.isEmpty || forceRefresh) {
+    // Check if cached resources are in the new format (have quality_note field)
+    bool cacheIsValid = false;
+    if (!forceRefresh && topic.resources.isNotEmpty) {
+      try {
+        final cached = topic.resources
+            .map((e) => Map<String, String>.from(jsonDecode(e)))
+            .toList();
+        // New format has quality_note; old format doesn't — invalidate old cache
+        final hasNewFormat = cached.any((r) => r.containsKey('quality_note'));
+        // Also ensure we have at least 2 actual resource types (not just 1)
+        final resourceTypes = cached.where((r) => r['type'] != 'practice_set' && r['type'] != 'mastery_hub').map((r) => r['type']).toSet();
+        if (hasNewFormat && resourceTypes.length >= 2) {
+          _resources = cached;
+          _isLoading = false;
+          cacheIsValid = true;
+        }
+      } catch (_) {
+        // Corrupted cache — will re-fetch
+      }
+    }
+
+    setState(() {});
+
+    if (!cacheIsValid) {
       final goal = ref.read(activeGoalProvider);
       final fetched = await _resourceService.fetchResources(
         topicName: topic.name,
@@ -465,50 +484,211 @@ class _TopicResourceScreenState extends ConsumerState<TopicResourceScreen> with 
   }
 
   Widget _buildResourceCard(Map<String, String> res, Color themeColor) {
+    final rank = res['rank'] ?? '';
+    final qualityNote = res['quality_note'] ?? '';
+    final description = res['description'] ?? '';
+    final hasRank = rank.isNotEmpty;
+    final isTopPick = rank == '1';
+
     return GestureDetector(
       onTap: () => _launchUrl(res['url']),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: AppColors.backgroundElevated,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderCard),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isTopPick
+                ? AppColors.accentAmber.withOpacity(0.5)
+                : AppColors.borderCard,
+            width: isTopPick ? 1.5 : 1.0,
+          ),
+          boxShadow: isTopPick
+              ? [
+                  BoxShadow(
+                    color: AppColors.accentAmber.withOpacity(0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  )
+                ]
+              : [],
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_getResourceIcon(res['type'] ?? ''), color: themeColor, size: 20),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header Row ────────────────────────────────────────────────
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    res['title'] ?? 'Resource',
-                    style: AppTextStyles.titleMedium.copyWith(fontSize: 15),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  // Rank + Icon
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: themeColor.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _getResourceIcon(res['type'] ?? ''),
+                          color: themeColor,
+                          size: 22,
+                        ),
+                      ),
+                      if (hasRank)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: isTopPick
+                                  ? AppColors.accentAmber
+                                  : AppColors.backgroundCard,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isTopPick
+                                    ? AppColors.accentAmber
+                                    : AppColors.borderCard,
+                                width: 1,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '#$rank',
+                                style: TextStyle(
+                                  fontSize: 7,
+                                  fontWeight: FontWeight.w900,
+                                  color: isTopPick
+                                      ? AppColors.backgroundDark
+                                      : AppColors.textMuted,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    res['source'] ?? 'Web',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          res['title'] ?? 'Resource',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontSize: 14,
+                            color: isTopPick
+                                ? AppColors.textPrimary
+                                : AppColors.textPrimary.withOpacity(0.9),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              res['source'] ?? 'Web',
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: themeColor.withOpacity(0.8),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 10,
+                              ),
+                            ),
+                            if (qualityNote.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 3,
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: AppColors.textMuted,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  qualityNote,
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: AppColors.textMuted,
+                                    fontSize: 10,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.open_in_new_rounded,
+                    size: 15,
+                    color: Colors.white24,
                   ),
                 ],
               ),
-            ),
-            Icon(Icons.open_in_new_rounded, size: 16, color: Colors.white24),
-          ],
+              // ── Description ───────────────────────────────────────────────
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: Colors.white10),
+                const SizedBox(height: 10),
+                Text(
+                  description,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary.withOpacity(0.75),
+                    height: 1.5,
+                    fontSize: 12,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              // ── Top Pick Banner ───────────────────────────────────────────
+              if (isTopPick) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentAmber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.accentAmber.withOpacity(0.25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.verified_rounded,
+                          size: 11, color: AppColors.accentAmber),
+                      const SizedBox(width: 5),
+                      Text(
+                        'CURATOR\'S TOP PICK',
+                        style: AppTextStyles.tagStyle.copyWith(
+                          color: AppColors.accentAmber,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
-    );
+    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.05, end: 0);
   }
 
   IconData _getResourceIcon(String type) {

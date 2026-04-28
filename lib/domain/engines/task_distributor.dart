@@ -21,17 +21,13 @@ class TaskDistributor {
     final totalDays = goal.totalDays;
     final goalId = goal.id;
 
-    // Trim topics to a realistic count (ensure enough days for revision too)
-    // Target: max 85% of days used for learning (15% headroom for final review)
-    final maxTopics = (totalDays * 0.85).floor().clamp(1, topics.length);
-    final activeTopics = topics.sublist(0, maxTopics);
+    final activeTopics = List<TopicModel>.from(topics);
 
-    // Calculate dynamic pacing
-    // We want to spread these topics across ~80% of total days to avoid early burnout
-    final learningDaysGoal = (totalDays * 0.80).ceil().clamp(1, totalDays);
-    final double topicsPerDay = activeTopics.length / learningDaysGoal;
+    // ── Day capacity in minutes ───────────────────────────────────────────
+    // Each day targets ~60 min of learning. Hard topics cost more capacity.
+    const int dayCapacityMin = 60;
 
-    // Revision queue: {dayNumber -> [topicId]}
+    // Revision queue: {dayNumber → [topicId]}
     final Map<int, List<String>> revisionQueue = {};
 
     // Initialize day plans
@@ -40,11 +36,10 @@ class TaskDistributor {
         id: _uuid.v4(),
         goalId: goalId,
         dayNumber: i + 1,
-        isUnlocked: i == 0, // only day 1 is unlocked initially
+        isUnlocked: i == 0,
       );
     });
 
-    double topicsAccrued = 0;
     int topicPointer = 0;
 
     for (int d = 1; d <= totalDays; d++) {
@@ -52,13 +47,13 @@ class TaskDistributor {
       final dayId = dayPlan.id;
       final List<TaskModel> tasks = [];
       int sortOrder = 0;
+      int minutesUsed = 0;
 
-      // ── Step 1: Add revision tasks due this day ─────────────────────
+      // ── Step 1: Add revision tasks due this day ─────────────────────────
       final revDue = List<String>.from(revisionQueue[d] ?? []);
       int revCount = 0;
       for (final topicId in revDue) {
         if (revCount >= _maxRevisePerDay) {
-          // Overflow: push to next available day
           _pushRevisionForward(topicId, d + 1, totalDays, revisionQueue);
           continue;
         }
@@ -67,82 +62,83 @@ class TaskDistributor {
         final topic = activeTopics[topicIdx];
 
         final recall = RevisionScheduler.buildRecallPrompt(topic);
+        final revMin = RevisionScheduler.reviseEstimate(topic);
         tasks.add(TaskModel(
           id: _uuid.v4(),
           dayPlanId: dayId,
           type: TaskType.revise,
           topicId: topicId,
           title: 'Revise: ${topic.name}',
-          description: topic.subTopics.isNotEmpty 
+          description: topic.subTopics.isNotEmpty
               ? 'Recall focus: ${topic.subTopics.join(", ")}'
               : recall.prompt,
-          estimatedMinutes: _reviseEstimate(topic),
+          estimatedMinutes: revMin,
           recallPrompt: recall,
           sortOrder: sortOrder++,
           videoId: topic.videoId,
           startSeconds: topic.startSeconds,
         ));
+        minutesUsed += revMin;
         revCount++;
       }
 
-      // ── Step 2: Fill learn tasks based on dynamic pace ──────────────
-      // Calculate how many topics should be learned by this day
-      topicsAccrued += topicsPerDay;
-      final int targetTopicsLearned = topicsAccrued.floor();
-      
-      int learnCount = 0;
-      // We allow at least 1 topic if we are behind the target, up to maxTasksPerDay
+      // ── Step 2: Fill learn tasks up to day capacity ─────────────────────
+      // Hard topics (rank A/S or tier 3) cost extra capacity — they get 1
+      // slot but consume 2× minutes, preventing overloading on hard days.
       while (
         topicPointer < activeTopics.length &&
-        topicPointer < targetTopicsLearned &&
+        minutesUsed < dayCapacityMin &&
         tasks.length < _maxTasksPerDay
       ) {
         final topic = activeTopics[topicPointer];
-        tasks.add(
-          TaskModel(
-            id: _uuid.v4(),
-            dayPlanId: dayId,
-            type: TaskType.learn,
-            topicId: topic.id,
-            title: topic.name,
-            description: _buildLearnDescription(topic),
-            estimatedMinutes: topic.estimatedLearnMinutes,
-            sortOrder: sortOrder++,
-            videoId: topic.videoId,
-            startSeconds: topic.startSeconds,
-          ),
-        );
+        final cost = _topicCost(topic); // minutes this topic "costs"
 
-        // Schedule Ebbinghaus revisions
+        // If adding this topic would exceed capacity AND we already have 1
+        // learn task today, defer it to tomorrow.
+        if (minutesUsed > 0 && minutesUsed + cost > dayCapacityMin + 15) break;
+
+        tasks.add(TaskModel(
+          id: _uuid.v4(),
+          dayPlanId: dayId,
+          type: TaskType.learn,
+          topicId: topic.id,
+          title: topic.name,
+          description: _buildLearnDescription(topic),
+          estimatedMinutes: topic.estimatedLearnMinutes,
+          sortOrder: sortOrder++,
+          videoId: topic.videoId,
+          startSeconds: topic.startSeconds,
+        ));
+        minutesUsed += cost;
+
+        // Hard topics (tier 3) get a rapid-fire revision the very next day
+        final isHard = topic.tier >= 3;
         RevisionScheduler.scheduleRevisions(
           topic: topic,
           learnDay: d,
           totalDays: totalDays,
           revisionQueue: revisionQueue,
+          forceEarlyRevision: isHard, // next-day revision for hard topics
         );
 
         topicPointer++;
-        learnCount++;
       }
 
-      // Fallback: If we have NO tasks at all and haven't finished the syllabus, 
-      // let's grab at least one topic to keep things moving.
+      // ── Step 3: Ensure at least 1 task per day ──────────────────────────
       if (tasks.isEmpty && topicPointer < activeTopics.length) {
         final topic = activeTopics[topicPointer];
-        tasks.add(
-          TaskModel(
-            id: _uuid.v4(),
-            dayPlanId: dayId,
-            type: TaskType.learn,
-            topicId: topic.id,
-            title: topic.name,
-            description: _buildLearnDescription(topic),
-            estimatedMinutes: topic.estimatedLearnMinutes,
-            sortOrder: sortOrder++,
-            videoId: topic.videoId,
-            startSeconds: topic.startSeconds,
-          ),
-        );
+        tasks.add(TaskModel(
+          id: _uuid.v4(),
+          dayPlanId: dayId,
+          type: TaskType.learn,
+          topicId: topic.id,
+          title: topic.name,
+          description: _buildLearnDescription(topic),
+          estimatedMinutes: topic.estimatedLearnMinutes,
+          sortOrder: sortOrder++,
+          videoId: topic.videoId,
+          startSeconds: topic.startSeconds,
+        ));
         RevisionScheduler.scheduleRevisions(
           topic: topic,
           learnDay: d,
@@ -152,17 +148,22 @@ class TaskDistributor {
         topicPointer++;
       }
 
-      // ── Step 3: If still no tasks today (revision-only or gap day) ──
-      // Add a "review strength" placeholder if we have weak topics
+      // ── Step 4: Gap day — add smart free review ──────────────────────────
       if (tasks.isEmpty) {
+        // Pick the weakest topic (lowest strengthScore) for the free review
+        final weakTopic = activeTopics.isNotEmpty
+            ? activeTopics.reduce((a, b) => a.strengthScore < b.strengthScore ? a : b)
+            : null;
         tasks.add(TaskModel(
           id: _uuid.v4(),
           dayPlanId: dayId,
           type: TaskType.revise,
-          topicId: activeTopics.isNotEmpty ? activeTopics.first.id : '',
-          title: 'Free Review Day',
-          description: 'Revisit any topic you found challenging. Strengthen your weakest concept.',
-          estimatedMinutes: 15,
+          topicId: weakTopic?.id ?? '',
+          title: weakTopic != null
+              ? 'Strengthen: ${weakTopic.name}'
+              : 'Free Review Day',
+          description: 'Revisit your weakest concept. Re-read notes, redo exercises.',
+          estimatedMinutes: 20,
           sortOrder: 0,
         ));
       }
@@ -171,6 +172,13 @@ class TaskDistributor {
     }
 
     return dayPlans;
+  }
+
+  static int _topicCost(TopicModel topic) {
+    // Tier 3 topics cost 2× capacity to give them breathing room in the schedule
+    return topic.tier >= 3
+        ? topic.estimatedLearnMinutes * 2
+        : topic.estimatedLearnMinutes;
   }
 
   static void _pushRevisionForward(
@@ -189,7 +197,7 @@ class TaskDistributor {
     // If no room found, just drop it (totalDays exceeded)
   }
 
-  static int _reviseEstimate(TopicModel topic) {
+  static int reviseEstimate(TopicModel topic) {
     // Shorter revision if strong, longer if weak
     if (topic.strengthScore > 0.7) return 8;
     if (topic.strengthScore > 0.4) return 12;

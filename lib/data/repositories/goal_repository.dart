@@ -134,12 +134,44 @@ class GoalRepository {
   }
 
   DayPlanModel? getCurrentDayPlan(String goalId) {
-    final plans = getDayPlansForGoal(goalId);
-    try {
-      return plans.firstWhere((p) => p.isUnlocked && !p.isCompleted);
-    } catch (_) {
-      return null;
+    final plans = getDayPlansForGoal(goalId); // already sorted by dayNumber
+
+    // ── Primary: find explicitly unlocked + incomplete plan ──────────────
+    for (final p in plans) {
+      if (p.isUnlocked && !p.isCompleted) return p;
     }
+
+    // ── Fallback: unlockNextDay may have failed silently.
+    // Find the next sequential plan after the last completed one,
+    // auto-unlock it, and return it so the user is never stuck.
+    DayPlanModel? lastCompleted;
+    for (final p in plans) {
+      if (p.isCompleted) lastCompleted = p;
+    }
+
+    if (lastCompleted != null) {
+      final nextIndex = plans.indexWhere((p) => p.dayNumber == lastCompleted!.dayNumber + 1);
+      if (nextIndex != -1) {
+        final next = plans[nextIndex];
+        // Auto-unlock: compensate for any missed unlockNextDay call
+        next.isUnlocked = true;
+        next.startedAt ??= DateTime.now();
+        HiveService.dayPlansBox.put(next.id, next);
+        return next;
+      }
+    }
+
+    // ── Last resort: no completed days yet — return day 1 if it exists
+    if (plans.isNotEmpty && !plans.first.isCompleted) {
+      final first = plans.first;
+      if (!first.isUnlocked) {
+        first.isUnlocked = true;
+        HiveService.dayPlansBox.put(first.id, first);
+      }
+      return first;
+    }
+
+    return null; // All days completed or no plans exist
   }
 
   DayPlanModel? getDayPlanByNumber(String goalId, int dayNumber) {

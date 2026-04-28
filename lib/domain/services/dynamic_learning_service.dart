@@ -19,35 +19,58 @@ class DynamicLearningService {
     void Function(String)? onProgress,
   }) async {
     final systemPrompt = """
-You are an expert AI Blueprint Specialist. Your task is to generate an ULTRA-ATOMIC blueprint for a specific pillar of a larger goal.
+You are an expert AI Blueprint Specialist. Generate an ULTRA-ATOMIC, ORDERED blueprint for a specific pillar.
 
 TOTAL GOAL: $goal
 STRATEGIC PILLAR: $pillarName
 SKILL LEVEL: $level
 
-Your objective is to break down '$pillarName' into 4-7 hyper-detailed 'Knowledge Nodes'.
+Break down '$pillarName' into 4-7 Knowledge Nodes in STRICT LEARNING ORDER.
+
+ORDERING RULES (critical):
+- Node 1 must be learnable with zero prior knowledge of $pillarName.
+- Each subsequent node may only reference IDs of nodes that come BEFORE it.
+- A node's prerequisites list MUST contain the IDs of nodes it depends on.
+- No circular dependencies. This is a Directed Acyclic Graph (DAG).
 
 ATOMIC RULES:
-- Each node must focus on a specific technical tool or concept within $pillarName.
-- FOR EACH NODE: You MUST list 6-10 atomic subtopics (commands, micro-concepts, verify steps).
-- Example: If the node is 'File Permissions', subtopics must be: ['ls -l notation', 'chmod numeric vs symbolic', 'chown usage', 'sticky bits', 'umask defaults'].
+- Each node: one specific technical tool or concept within $pillarName.
+- Each node: 6-10 atomic subtopics (commands, micro-concepts, verify steps).
+- Example for 'File Permissions': ['ls -l notation', 'chmod numeric vs symbolic', 'chown usage', 'sticky bits', 'umask defaults'].
+- learning_order: sequential integer starting at 1 (defines the study order).
+- tier: 1=foundational, 2=intermediate, 3=advanced.
 
 JSON SCHEMA:
 {
   "graph": [
     {
-      "id": "slug",
-      "concept": "Atomic Topic Title",
-      "subtopics": ["Micro 1", "Micro 2", "Micro 3", "Micro 4", "Micro 5", "Micro 6", "Micro 7", "Micro 8"],
+      "id": "slug_1",
+      "concept": "Foundational Concept Title",
+      "learning_order": 1,
+      "subtopics": ["micro1", "micro2", "micro3", "micro4", "micro5", "micro6"],
       "module_name": "$pillarName",
       "prerequisites": [],
       "weight": 1.0,
+      "estimated_time_minutes": 35,
+      "is_boss": false,
+      "tier": 1
+    },
+    {
+      "id": "slug_2",
+      "concept": "Intermediate Concept Title",
+      "learning_order": 2,
+      "subtopics": ["micro1", "micro2", "micro3", "micro4", "micro5", "micro6"],
+      "module_name": "$pillarName",
+      "prerequisites": ["slug_1"],
+      "weight": 1.0,
       "estimated_time_minutes": 45,
       "is_boss": false,
-      "tier": "1|2|3"
+      "tier": 2
     }
   ]
 }
+
+Return ONLY valid JSON. No markdown. No explanation.
 """;
 
     try {
@@ -78,11 +101,19 @@ JSON SCHEMA:
         throw Exception('No graph nodes found in extracted JSON: $cleanedText');
       }
 
+      // Sort by learning_order so sub-topics are placed in dependency order
+      graph.sort((a, b) {
+        final aOrder = (a['learning_order'] as num?)?.toInt() ?? 99;
+        final bOrder = (b['learning_order'] as num?)?.toInt() ?? 99;
+        return aOrder.compareTo(bOrder);
+      });
+
       return graph.map((node) {
         final List<dynamic> subs = node['subtopics'] as List<dynamic>? ?? [];
         return {
           'id': node['id']?.toString() ?? '',
           'concept': node['concept']?.toString() ?? 'Learning Node',
+          'learning_order': (node['learning_order'] as num?)?.toInt() ?? 0,
           'subtopics': subs.map((e) => e.toString()).toList(),
           'module_name': node['module_name']?.toString() ?? 'Core Journey',
           'prerequisites': (node['prerequisites'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],

@@ -1,8 +1,0 @@
-WARNING|STATIC_WARNING|UNUSED_FIELD|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|21|9|18|The value of the field '_answeredCorrectly' isn't used.
-INFO|HINT|DEPRECATED_MEMBER_USE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|54|46|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
-INFO|HINT|DEPRECATED_MEMBER_USE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|167|45|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
-INFO|HINT|DEPRECATED_MEMBER_USE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|172|43|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
-INFO|HINT|DEPRECATED_MEMBER_USE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|230|44|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
-INFO|HINT|DEPRECATED_MEMBER_USE|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|233|48|11|'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss.
-INFO|LINT|PREFER_CONST_CONSTRUCTORS|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|254|14|155|Use 'const' with the constructor to improve performance.
-INFO|LINT|PREFER_CONST_CONSTRUCTORS|C:\\Users\\dilku\\Desktop\\goalapp\\lib\\presentation\\screens\\task\\recall_screen.dart|265|9|109|Use 'const' with the constructor to improve performance.

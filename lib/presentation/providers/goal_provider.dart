@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../data/models/goal_model.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/models/day_plan_model.dart';
+import '../../data/models/task_model.dart';
 import '../../data/repositories/goal_repository.dart';
 import '../../domain/engines/topic_generator.dart';
 import 'generation_provider.dart';
@@ -354,16 +355,40 @@ class DayPlanNotifier extends StateNotifier<DayPlanModel?> {
 
   void _insertEmergencyRevisions(
     Map<int, List<String>> queue,
-    dynamic topic,
+    TopicModel topic,
     GoalModel goal,
   ) {
+    const uuid = Uuid();
+
     for (final entry in queue.entries) {
       final targetDay = entry.key;
       final dayPlan = _repo.getDayPlanByNumber(goal.id, targetDay);
-      if (dayPlan != null && !dayPlan.isCompleted) {
-        // This minimal insertion just records the scheduled revision on the topic
-        // Full re-generation is deferred to avoid heavy I/O during task completion
-      }
+      if (dayPlan == null || dayPlan.isCompleted) continue;
+
+      // Don't double-insert if a revise task for this topic already exists
+      final alreadyScheduled = dayPlan.tasks
+          .any((t) => t.topicId == topic.id && t.type == TaskType.revise);
+      if (alreadyScheduled) continue;
+
+      // Build and insert the emergency revision task
+      final recall = RevisionScheduler.buildRecallPrompt(topic);
+      final emergencyTask = TaskModel(
+        id: uuid.v4(),
+        dayPlanId: dayPlan.id,
+        type: TaskType.revise,
+        topicId: topic.id,
+        title: '⚠️ Reinforce: ${topic.name}',
+        description: 'You struggled with this — a quick recall session now '
+            'will prevent forgetting.',
+        estimatedMinutes: RevisionScheduler.reviseEstimate(topic),
+        recallPrompt: recall,
+        sortOrder: dayPlan.tasks.length,
+        videoId: topic.videoId,
+        startSeconds: topic.startSeconds,
+      );
+
+      dayPlan.tasks = [...dayPlan.tasks, emergencyTask];
+      _repo.saveDayPlan(dayPlan);
     }
   }
 
@@ -372,19 +397,26 @@ class DayPlanNotifier extends StateNotifier<DayPlanModel?> {
     if (state == null || _goalId == null) return;
 
     final currentDayNum = state!.dayNumber;
-    await _repo.markDayComplete(state!.id);
 
-    final goal = _repo.getGoal(_goalId!);
-    if (goal == null) return;
+    try {
+      await _repo.markDayComplete(state!.id);
 
-    if (currentDayNum >= goal.totalDays) {
-      // Goal completed!
-      await _repo.updateGoalComplete(_goalId!);
-    } else {
-      await _repo.unlockNextDay(_goalId!, currentDayNum + 1);
+      final goal = _repo.getGoal(_goalId!);
+      if (goal == null) {
+        // Goal record missing — just reload so UI isn't stuck
+        return;
+      }
+
+      if (currentDayNum >= goal.totalDays) {
+        await _repo.updateGoalComplete(_goalId!);
+      } else {
+        await _repo.unlockNextDay(_goalId!, currentDayNum + 1);
+      }
+    } finally {
+      // Always reload — even if something above threw or returned early,
+      // the UI must never stay frozen on the completed day.
+      _load();
     }
-
-    _load();
   }
 
   void refresh() => _load();
