@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -25,7 +24,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _onTaskComplete(TaskModel task, {bool? recallCorrect}) async {
     List<String>? subTopics;
 
-    // Quick Reflection is ONLY for Learn tasks (not Revise/Recall sessions)
     if (task.isLearn && !task.isDone) {
       final topic = ref.read(goalRepositoryProvider).getTopic(task.topicId);
       final result = await showDialog<List<String>>(
@@ -68,7 +66,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final goal = ref.watch(activeGoalProvider);
     final dayPlan = ref.watch(currentDayPlanProvider);
 
-    // flutter-adding-home-screen-widgets: Keep the OS widget in sync with the task list
     ref.listen(currentDayPlanProvider, (previous, next) {
       if (goal != null && next != null) {
         final pendingCount = next.tasks.where((t) => !t.isDone).length;
@@ -89,30 +86,51 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return Scaffold(
       body: Stack(
         children: [
+          // ── Background gradient ──────────────────────────────────────────
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF0B0F1A), Color(0xFF0D1225)],
+                colors: [Color(0xFF080C17), Color(0xFF0D1428)],
               ),
             ),
             child: SafeArea(
               child: CustomScrollView(
-                // flutter-caching-data skill: pre-render 600px of off-screen
-                // content to eliminate layout jank when scrolling task cards.
                 cacheExtent: 600,
                 slivers: [
                   SliverToBoxAdapter(child: _buildHeader(goal, dayPlan)),
-                  SliverToBoxAdapter(
-                    child: _buildMotivationBanner(dayPlan),
-                  ),
+                  SliverToBoxAdapter(child: _buildMotivationBanner(dayPlan)),
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                      child: Text(
-                        "Today's Tasks",
-                        style: AppTextStyles.titleLarge,
+                      padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
+                      child: Row(
+                        children: [
+                          // Left accent bar
+                          Container(
+                            width: 3,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  AppColors.gradientAmberStart,
+                                  AppColors.gradientAmberEnd,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            "Today's Tasks",
+                            style: AppTextStyles.titleLarge.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -127,8 +145,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 .read(goalRepositoryProvider)
                                 .getTopic(task.topicId);
                             final isExpanded = topic?.isBlueprintGenerated ?? true;
-                            final isExpanding = ref.watch(deepDiveProvider).contains(task.topicId);
-                            
+                            final isExpanding =
+                                ref.watch(deepDiveProvider).contains(task.topicId);
+
                             return TaskCardWidget(
                               key: ValueKey(task.id),
                               task: task,
@@ -141,18 +160,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               isExpanding: isExpanding,
                               onDeepDive: () {
                                 if (topic != null) {
-                                  ref.read(deepDiveProvider.notifier).expandPillar(topic);
+                                  ref
+                                      .read(deepDiveProvider.notifier)
+                                      .expandPillar(topic);
                                 }
                               },
                               onComplete: ({recallCorrect}) =>
                                   _onTaskComplete(task, recallCorrect: recallCorrect),
-                            )
-                                .animate()
-                                .fadeIn(
-                                  delay: Duration(milliseconds: 100 + i * 60),
-                                  duration: 350.ms,
-                                )
-                                .slideX(begin: 0.1, end: 0);
+                            );
                           },
                           childCount: dayPlan.tasks.length,
                         ),
@@ -160,32 +175,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     )
                   else
                     SliverToBoxAdapter(child: _buildEmptyState()),
-                  // Safety button: shows when all tasks done but overlay didn't fire
+                  // Safety advance button
                   if (dayPlan != null && dayPlan.allTasksDone && !_showCompleteOverlay)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                        child: ElevatedButton.icon(
-                          onPressed: _onDayAdvance,
-                          icon: const Icon(Icons.arrow_forward_rounded),
-                          label: Text(
-                            dayPlan.dayNumber >= goal.totalDays
-                                ? 'Complete Sprint 🎉'
-                                : 'Continue to Day ${dayPlan.dayNumber + 1} →',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.accentAmber,
-                            foregroundColor: AppColors.backgroundDark,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            textStyle: AppTextStyles.titleMedium
-                                .copyWith(fontWeight: FontWeight.w800),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                          ),
-                        ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2),
+                        child: _buildAdvanceButton(dayPlan, goal),
                       ),
                     ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 40)),
                 ],
               ),
             ),
@@ -203,10 +201,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+  Widget _buildAdvanceButton(dynamic dayPlan, dynamic goal) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: ElevatedButton.icon(
+        onPressed: _onDayAdvance,
+        icon: const Icon(Icons.arrow_forward_rounded),
+        label: Text(
+          dayPlan.dayNumber >= goal.totalDays
+              ? 'Complete Sprint 🎉'
+              : 'Continue to Day ${dayPlan.dayNumber + 1}',
+        ),
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size.fromHeight(52),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(dynamic goal, dynamic dayPlan) {
     final progress = goal.currentDay / goal.totalDays;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -218,57 +234,91 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   children: [
                     Text(
                       goal.name,
-                      style: AppTextStyles.headlineLarge,
+                      style: AppTextStyles.headlineLarge.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Day ${goal.currentDay} of ${goal.totalDays}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.accentAmber,
-                        fontWeight: FontWeight.w600,
+                    const SizedBox(height: 6),
+                    // Glowing amber day badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.accentAmber.withOpacity(0.2),
+                            AppColors.accentAmber.withOpacity(0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.accentAmber.withOpacity(0.45),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AppColors.glowAmber,
+                            blurRadius: 10,
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.local_fire_department_rounded,
+                              size: 13, color: AppColors.accentAmber),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Day ${goal.currentDay} of ${goal.totalDays}',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: AppColors.accentAmber,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              GestureDetector(
+              // Icon buttons with gradient background
+              _buildHeaderIconButton(
+                Icons.collections_bookmark_rounded,
                 onTap: () => context.push('/goals'),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderCard),
-                  ),
-                  child: const Icon(Icons.collections_bookmark_rounded,
-                      color: AppColors.textSecondary, size: 20),
-                ),
               ),
-              GestureDetector(
+              const SizedBox(width: 8),
+              _buildHeaderIconButton(
+                Icons.bar_chart_rounded,
                 onTap: () => context.push('/stats'),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderCard),
-                  ),
-                  child: const Icon(Icons.bar_chart_rounded,
-                      color: AppColors.textSecondary, size: 20),
-                ),
+              ),
+              const SizedBox(width: 8),
+              _buildHeaderIconButton(
+                Icons.settings_rounded,
+                onTap: () => context.push('/settings'),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _buildProgressBar(progress),
           const SizedBox(height: 20),
-          const Divider(height: 1, color: AppColors.borderSubtle),
+          Container(height: 1, color: AppColors.borderSubtle),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderIconButton(IconData icon, {required VoidCallback onTap}) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, color: AppColors.textSecondary, size: 22),
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.backgroundElevated,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.borderCard),
+        ),
       ),
     );
   }
@@ -279,35 +329,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Overall Progress', style: AppTextStyles.bodySmall),
             Text(
-              '${(progress * 100).round()}%',
-              style: AppTextStyles.bodySmall
-                  .copyWith(color: AppColors.textSecondary),
+              'Overall Progress',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.accentAmber.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${(progress * 100).round()}%',
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.accentAmber,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: progress),
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeOutCubic,
-            builder: (ctx, val, _) => LinearProgressIndicator(
-              value: val,
-              minHeight: 6,
-              backgroundColor: AppColors.progressTrack,
-              valueColor: const AlwaysStoppedAnimation(AppColors.progressFill),
-            ),
-          ),
+        const SizedBox(height: 10),
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: progress),
+          duration: const Duration(milliseconds: 900),
+          curve: Curves.easeOutCubic,
+          builder: (ctx, val, _) {
+            return Stack(
+              children: [
+                // Track
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    height: 8,
+                    color: AppColors.progressTrack,
+                  ),
+                ),
+                // Fill
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: FractionallySizedBox(
+                    widthFactor: val.clamp(0.0, 1.0),
+                    child: Container(
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.gradientBlueStart,
+                            AppColors.gradientBlueEnd,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
   }
 
-
-  /// No active goal — guide the user to create/import one
   Widget _buildNoSprintScreen(BuildContext context) {
     return SafeArea(
       child: Center(
@@ -317,52 +403,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 88,
-                height: 88,
+                width: 96,
+                height: 96,
                 decoration: BoxDecoration(
-                  color: AppColors.accentAmber.withOpacity(0.1),
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.accentAmber.withOpacity(0.18),
+                      AppColors.accentAmber.withOpacity(0.0),
+                    ],
+                  ),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                      color: AppColors.accentAmber.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.accentAmber.withOpacity(0.35), width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(color: AppColors.glowAmber, blurRadius: 20),
+                  ],
                 ),
                 child: const Icon(Icons.rocket_launch_rounded,
-                    size: 40, color: AppColors.accentAmber),
+                    size: 42, color: AppColors.accentAmber),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               Text('No Active Sprint',
-                  style: AppTextStyles.headlineLarge,
-                  textAlign: TextAlign.center),
+                  style: AppTextStyles.headlineLarge, textAlign: TextAlign.center),
               const SizedBox(height: 12),
               Text(
                 'Start a phase from your Roadmap Library to begin your daily learning plan.',
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => context.push('/goals'),
-                  icon: const Icon(Icons.collections_bookmark_rounded),
-                  label: const Text('Open Roadmap Library'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentAmber,
-                    foregroundColor: AppColors.backgroundDark,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    textStyle: AppTextStyles.titleMedium
-                        .copyWith(fontWeight: FontWeight.w800),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
+              const SizedBox(height: 36),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/goals'),
+                icon: const Icon(Icons.collections_bookmark_rounded, size: 18),
+                label: const Text('Open Roadmap Library'),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: () => context.push('/create'),
-                child: Text('Design new roadmap',
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: AppColors.textSecondary)),
+                child: const Text('Design new roadmap'),
               ),
             ],
           ),
@@ -373,35 +450,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Widget _buildMotivationBanner(dynamic dayPlan) {
     if (dayPlan == null) return const SizedBox.shrink();
+
     final pending = dayPlan.pendingCount;
-    final String msg = pending == 0
+    final bool allDone = pending == 0;
+
+    final String msg = allDone
         ? "All done! You're unstoppable 🔥"
         : pending == 1
             ? 'One task left — finish strong 💪'
             : '$pending tasks to go. Stay focused.';
+
+    final Color bannerColor =
+        allDone ? AppColors.accentGreen : AppColors.learnColor;
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: AppColors.backgroundElevated,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderCard),
-      ),
-      child: Row(
-        children: [
-          Text('⚡', style: const TextStyle(fontSize: 18)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(msg, style: AppTextStyles.bodyMedium),
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            bannerColor.withOpacity(0.15),
+            bannerColor.withOpacity(0.04),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: bannerColor.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: bannerColor.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-    )
-        .animate()
-        .fadeIn(delay: 100.ms, duration: 400.ms);
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: bannerColor.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              allDone ? Icons.verified_rounded : Icons.bolt_rounded,
+              size: 18,
+              color: bannerColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              msg,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  /// All day plans done but goal not completed — or day plans exhausted
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -410,44 +523,41 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 88,
+              height: 88,
               decoration: BoxDecoration(
-                color: AppColors.accentGreen.withOpacity(0.1),
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.accentGreen.withOpacity(0.18),
+                    AppColors.accentGreen.withOpacity(0.0),
+                  ],
+                ),
                 shape: BoxShape.circle,
                 border: Border.all(
-                    color: AppColors.accentGreen.withOpacity(0.3)),
+                    color: AppColors.accentGreen.withOpacity(0.35), width: 1.5),
+                boxShadow: const [
+                  BoxShadow(color: AppColors.glowGreen, blurRadius: 20),
+                ],
               ),
               child: const Icon(Icons.verified_rounded,
-                  size: 36, color: AppColors.accentGreen),
+                  size: 40, color: AppColors.accentGreen),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Text('Phase Complete!',
-                style: AppTextStyles.headlineMedium,
-                textAlign: TextAlign.center),
+                style: AppTextStyles.headlineMedium, textAlign: TextAlign.center),
             const SizedBox(height: 8),
             Text(
               'You\'ve finished all tasks in this sprint.\nReady for the next phase?',
-              style: AppTextStyles.bodyMedium
-                  .copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => context.push('/goals'),
-                icon: const Icon(Icons.arrow_forward_rounded),
-                label: const Text('Start Next Phase'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accentAmber,
-                  foregroundColor: AppColors.backgroundDark,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  textStyle: AppTextStyles.titleMedium
-                      .copyWith(fontWeight: FontWeight.w800),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/goals'),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+              label: const Text('Start Next Phase'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
               ),
             ),
           ],

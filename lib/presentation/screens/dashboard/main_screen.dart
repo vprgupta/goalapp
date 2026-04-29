@@ -4,18 +4,27 @@ import 'dashboard_screen.dart';
 import '../goal_list/goal_list_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  /// 0 = Roadmap Vault, 1 = Active Sprint Dashboard
+  final int initialTab;
+
+  const MainScreen({super.key, this.initialTab = 1});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialTab;
+  }
 
   final List<Widget> _screens = [
-    const GoalListScreen(), // Will act as Roadmap Library
-    const DashboardScreen(), // The Active Sprint Execution
+    const GoalListScreen(),   // Tab 0 — Roadmap Library Vault
+    const DashboardScreen(),  // Tab 1 — Active Sprint
   ];
 
   @override

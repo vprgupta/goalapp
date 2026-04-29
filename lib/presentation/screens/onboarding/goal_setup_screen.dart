@@ -212,7 +212,7 @@ class _GoalSetupScreenState extends ConsumerState<GoalSetupScreen> {
             customMetadata: _sourceType != 'ai' ? _fetchedMetadata : null,
           );
       _stopLoadingTimers();
-      if (mounted) context.go('/');
+      if (mounted) context.go('/goals');
     } catch (e) {
       setState(() {
         _isCreating = false;

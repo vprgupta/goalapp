@@ -8,6 +8,7 @@ import '../screens/goal_list/goal_list_screen.dart';
 import '../screens/task/recall_screen.dart';
 import '../screens/stats/stats_screen.dart';
 import '../screens/task/topic_resource_screen.dart';
+import '../screens/settings/settings_screen.dart';
 import '../../data/models/task_model.dart';
 import '../../data/local/hive_service.dart';
 import '../../data/models/goal_model.dart';
@@ -47,7 +48,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
     GoRoute(
       path: '/',
-      builder: (ctx, state) => const MainScreen(),
+      builder: (ctx, state) => const MainScreen(initialTab: 1), // Dashboard by default
+    ),
+    GoRoute(
+      path: '/goals',
+      builder: (ctx, state) => const MainScreen(initialTab: 0), // Vault tab
     ),
     GoRoute(
       path: '/create',
@@ -85,6 +90,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         final topicId = state.pathParameters['topicId']!;
         return TopicResourceScreen(topicId: topicId);
       },
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (ctx, state) => const SettingsScreen(),
     ),
     GoRoute(
       path: '/complete',
