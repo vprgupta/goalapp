@@ -44,13 +44,14 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       stability: fields[24] as double,
       difficulty: fields[25] as double,
       sortOrder: fields[26] as int,
+      cognitiveLoad: fields[27] == null ? 5 : fields[27] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, TopicModel obj) {
     writer
-      ..writeByte(27)
+      ..writeByte(28)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -104,7 +105,9 @@ class TopicModelAdapter extends TypeAdapter<TopicModel> {
       ..writeByte(25)
       ..write(obj.difficulty)
       ..writeByte(26)
-      ..write(obj.sortOrder);
+      ..write(obj.sortOrder)
+      ..writeByte(27)
+      ..write(obj.cognitiveLoad);
   }
 
   @override

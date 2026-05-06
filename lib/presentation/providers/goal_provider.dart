@@ -6,6 +6,7 @@ import '../../data/models/day_plan_model.dart';
 import '../../data/models/task_model.dart';
 import '../../data/repositories/goal_repository.dart';
 import '../../domain/engines/topic_generator.dart';
+import '../../domain/services/user_progress_service.dart';
 import 'generation_provider.dart';
 import 'service_providers.dart';
 import '../../domain/engines/task_distributor.dart';
@@ -51,6 +52,11 @@ class GoalListNotifier extends StateNotifier<List<GoalModel>> {
   final Ref _ref;
 
   GoalListNotifier(this._repo, this._ref) : super([]) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    await _repo.cleanOrphans();
     _load();
   }
 
@@ -151,7 +157,7 @@ class GoalListNotifier extends StateNotifier<List<GoalModel>> {
   }
 
   /// Retrieves a specific phase from a Roadmap and converts it into a scheduled Action Plan.
-  Future<void> importPhaseToActiveGoal(TopicModel pillar, int studyDays) async {
+  Future<void> importPhaseToActiveGoal(TopicModel pillar, int studyDays, {int dailyMinuteBudget = 60}) async {
     // 1. Get all topics generated for this roadmap
     final allRoadmapTopics = _repo.getTopicsForGoal(pillar.goalId);
     
@@ -166,9 +172,10 @@ class GoalListNotifier extends StateNotifier<List<GoalModel>> {
       id: newGoalId,
       name: pillar.name,
       level: 'intermediate',
-      totalDays: studyDays, // User chooses how many days they want to spend on this phase
+      totalDays: studyDays,
       createdAt: DateTime.now(),
       status: GoalStatus.active,
+      dailyMinuteBudget: dailyMinuteBudget,
     );
 
     // Fetch parent roadmap to inherit its difficulty level
@@ -176,6 +183,7 @@ class GoalListNotifier extends StateNotifier<List<GoalModel>> {
     if (parentRoadmap != null) {
       activeGoal.level = parentRoadmap.level;
     }
+
 
     // 3. Clone the topics to the new Goal (so the original Roadmap remains intact)
     int sortIdx = 0;
@@ -318,7 +326,20 @@ class DayPlanNotifier extends StateNotifier<DayPlanModel?> {
       recallCorrect: recallCorrect,
     );
 
-    // 2. Update topic strength if recall answered
+    // 2. Award XP and record streak activity
+    final task = state?.tasks.where((t) => t.id == taskId).firstOrNull;
+    if (task != null) {
+      int xpAmount = task.type == TaskType.revise
+          ? UserProgressService.xpReviseTopic
+          : UserProgressService.xpLearnTopic;
+      // Check if it's a boss topic
+      final topic = _repo.getTopic(topicId);
+      if (topic?.isBoss == true) xpAmount = UserProgressService.xpBossTopic;
+      await UserProgressService.awardXp(xpAmount);
+      await UserProgressService.recordActivity();
+    }
+
+    // 3. Update topic strength if recall answered
     if (recallCorrect != null) {
       final topic = _repo.getTopic(topicId);
       if (topic != null) {
@@ -347,9 +368,11 @@ class DayPlanNotifier extends StateNotifier<DayPlanModel?> {
       }
     }
 
-    // 3. Reload and check completion
+    // 4. Reload and check completion
     _load();
     final allDone = state?.allTasksDone ?? false;
+    // Award perfect day bonus
+    if (allDone) await UserProgressService.awardXp(UserProgressService.xpPerfectDay);
     return allDone;
   }
 

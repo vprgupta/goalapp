@@ -8,8 +8,10 @@ import '../../providers/goal_provider.dart';
 import 'task_card_widget.dart';
 import 'key_concepts_dialog.dart';
 import 'day_complete_overlay.dart';
+import 'phase_completion_overlay.dart';
 import '../../providers/deep_dive_provider.dart';
 import '../../../domain/services/home_widget_service.dart';
+import '../../../domain/services/user_progress_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -20,6 +22,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _showCompleteOverlay = false;
+  bool _showPhaseComplete = false;
 
   Future<void> _onTaskComplete(TaskModel task, {bool? recallCorrect}) async {
     List<String>? subTopics;
@@ -57,7 +60,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final goal = ref.read(activeGoalProvider);
     if (goal?.status.name == 'completed' && mounted) {
-      context.go('/complete');
+      // Show phase completion celebration instead of navigating immediately
+      setState(() => _showPhaseComplete = true);
     }
   }
 
@@ -100,7 +104,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 cacheExtent: 600,
                 slivers: [
                   SliverToBoxAdapter(child: _buildHeader(goal, dayPlan)),
-                  SliverToBoxAdapter(child: _buildMotivationBanner(dayPlan)),
+                  SliverToBoxAdapter(child: _buildStreakXpBar()),
+                  SliverToBoxAdapter(child: _buildMotivationBanner(dayPlan, goal)),
+                  if (dayPlan != null) SliverToBoxAdapter(child: _buildCatchUpBanner(dayPlan, goal)),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
@@ -136,7 +142,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                   if (dayPlan != null)
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (ctx, i) {
@@ -195,6 +201,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               dayPlan: dayPlan,
               goal: goal,
               onContinue: _onDayAdvance,
+            ),
+
+          // Phase Complete Celebration
+          if (_showPhaseComplete)
+            PhaseCompletionOverlay(
+              phaseName: goal.name,
+              topicsCompleted: goal.topicIds.length,
+              xpEarned: goal.topicIds.length * UserProgressService.xpLearnTopic + UserProgressService.xpPerfectDay,
+              onContinue: () {
+                setState(() => _showPhaseComplete = false);
+                context.go('/complete');
+              },
             ),
         ],
       ),
@@ -448,17 +466,220 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildMotivationBanner(dynamic dayPlan) {
+  Widget _buildStreakXpBar() {
+    final streak = UserProgressService.currentStreak;
+    final level = UserProgressService.level;
+    final lvlProgress = UserProgressService.levelProgress;
+    final xpInLevel = UserProgressService.xpInCurrentLevel;
+    final xpNeeded = UserProgressService.xpForNextLevel(level);
+    final title = UserProgressService.levelTitle;
+    final streakBroken = UserProgressService.isStreakBroken;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderCard),
+      ),
+      child: Row(
+        children: [
+          // Streak counter
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: streakBroken
+                  ? Colors.grey.withOpacity(0.1)
+                  : AppColors.accentAmber.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: streakBroken
+                    ? Colors.grey.withOpacity(0.2)
+                    : AppColors.accentAmber.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.local_fire_department_rounded,
+                  size: 16,
+                  color: streakBroken ? Colors.grey : AppColors.accentAmber,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '$streak day${streak == 1 ? '' : 's'}',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: streakBroken ? Colors.grey : AppColors.accentAmber,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // XP + level bar
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Lv.$level $title',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: const Color(0xFFB197FC),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '$xpInLevel/$xpNeeded XP',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: lvlProgress,
+                    minHeight: 5,
+                    backgroundColor: AppColors.progressTrack,
+                    valueColor: const AlwaysStoppedAnimation(Color(0xFFB197FC)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCatchUpBanner(dynamic dayPlan, dynamic goal) {
+    // Detect if there are tasks from previous days that are incomplete
+    final goalId = goal.id as String;
+    final allDayPlans = ref.read(goalRepositoryProvider).getDayPlansForGoal(goalId);
+    final currentDayNum = goal.currentDay as int;
+
+    final incomplete = allDayPlans.where((dp) {
+      return !(dp.isCompleted as bool) &&
+          (dp.dayNumber as int) < currentDayNum &&
+          dp.tasks.any((t) => !(t.isDone as bool));
+    }).toList();
+
+    if (incomplete.isEmpty) return const SizedBox.shrink();
+
+    final overdueCount = incomplete.fold<int>(
+      0,
+      (int sum, dynamic dp) => sum + (dp.tasks as List).where((t) => !(t.isDone as bool)).length,
+    );
+
+    return GestureDetector(
+      onTap: () => _showCatchUpDialog(incomplete, goal),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFFFF6B6B).withOpacity(0.15),
+              const Color(0xFFFF6B6B).withOpacity(0.04),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFFF6B6B).withOpacity(0.35)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.replay_rounded, color: Color(0xFFFF6B6B), size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '⚠️ $overdueCount overdue task${overdueCount == 1 ? '' : 's'} from past days',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    'Tap to reschedule missed tasks to today',
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: const Color(0xFFFF6B6B).withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFFFF6B6B)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCatchUpDialog(List<dynamic> incompletePlans, dynamic goal) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.backgroundElevated,
+        title: const Text('Catch-Up Mode 📋'),
+        content: const Text(
+          'Move all overdue incomplete tasks to today so you can get back on track. This will not change your overall deadline.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reschedule'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    // Mark past incomplete day plans as completed to push tasks forward
+    for (final plan in incompletePlans) {
+      await ref.read(goalRepositoryProvider).markDayComplete(plan.id as String);
+    }
+    // Refresh state
+    ref.invalidate(currentDayPlanProvider);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tasks rescheduled to today ✅')),
+      );
+    }
+  }
+
+  Widget _buildMotivationBanner(dynamic dayPlan, [dynamic goal]) {
     if (dayPlan == null) return const SizedBox.shrink();
 
     final pending = dayPlan.pendingCount;
     final bool allDone = pending == 0;
 
+    // Today's total estimated time
+    final int todayMinutes = (dayPlan.tasks as List)
+        .where((t) => !(t.isDone as bool))
+        .fold<int>(0, (int sum, dynamic t) => sum + (t.estimatedMinutes as int));
+    final String timeLabel = todayMinutes > 0
+        ? '~${todayMinutes}min'
+        : '';
+
     final String msg = allDone
         ? "All done! You're unstoppable 🔥"
         : pending == 1
             ? 'One task left — finish strong 💪'
-            : '$pending tasks to go. Stay focused.';
+            : '$pending tasks to go.${ timeLabel.isNotEmpty ? ' $timeLabel today.' : ' Stay focused.'}';
 
     final Color bannerColor =
         allDone ? AppColors.accentGreen : AppColors.learnColor;

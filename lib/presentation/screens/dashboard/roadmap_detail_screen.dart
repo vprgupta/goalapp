@@ -26,6 +26,7 @@ class RoadmapDetailScreen extends ConsumerWidget {
     final pillars = allTopics
         .where((t) =>
             t.moduleName?.toUpperCase().startsWith('PHASE') == true ||
+            t.moduleName?.toUpperCase().startsWith('MILESTONE') == true ||
             (t.moduleName == null && !t.isBlueprintGenerated))
         .toList()
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
@@ -37,12 +38,10 @@ class RoadmapDetailScreen extends ConsumerWidget {
             ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     }
 
+    final allGoals = repo.getAllGoals();
     int completedCount = 0;
     for (final pillar in pillars) {
-      final subs = subTopicsByPillar[pillar.id] ?? [];
-      if (pillar.isBlueprintGenerated &&
-          subs.isNotEmpty &&
-          subs.every((s) => s.learnedOnDay > 0)) {
+      if (allGoals.any((g) => g.status.name == 'completed' && g.name == pillar.name)) {
         completedCount++;
       }
     }
@@ -178,9 +177,8 @@ class RoadmapDetailScreen extends ConsumerWidget {
                   final isExpanded = pillar.isBlueprintGenerated;
                   final isExpanding =
                       ref.watch(deepDiveProvider).contains(pillar.id);
-                  final isCompleted = isExpanded &&
-                      subs.isNotEmpty &&
-                      subs.every((s) => s.learnedOnDay > 0);
+                  final allGoals = ref.watch(goalRepositoryProvider).getAllGoals();
+                  final isCompleted = allGoals.any((g) => g.status.name == 'completed' && g.name == pillar.name);
 
                   return _PhaseCard(
                     pillar: pillar,
@@ -192,20 +190,64 @@ class RoadmapDetailScreen extends ConsumerWidget {
                     onBlueprint: () =>
                         ref.read(deepDiveProvider.notifier).expandPillar(pillar),
                     onStart: () async {
+                      // Show time budget picker
+                      final minuteBudget = await showModalBottomSheet<int>(
+                        context: ctx,
+                        backgroundColor: AppColors.backgroundElevated,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        builder: (sheetCtx) => Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('⏱️ How much time per day?',
+                                  style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 6),
+                              Text('We\'ll build your schedule around your availability.',
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+                              const SizedBox(height: 20),
+                              ...[
+                                (30, '30 min/day', 'Quick learner — 1-2 topics/day'),
+                                (60, '1 hr/day', 'Balanced — 2-3 topics/day (recommended)'),
+                                (90, '1.5 hr/day', 'Intensive — 3-4 topics/day'),
+                                (120, '2+ hr/day', 'Deep focus — cover more, faster'),
+                              ].map(((int, String, String) opt) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentAmber.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.timer_outlined, color: AppColors.accentAmber, size: 18),
+                                ),
+                                title: Text(opt.$2, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+                                subtitle: Text(opt.$3, style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted)),
+                                onTap: () => Navigator.pop(sheetCtx, opt.$1),
+                              )),
+                            ],
+                          ),
+                        ),
+                      );
+                      if (minuteBudget == null) return;
+
                       final topicCount = subs.isEmpty ? 1 : subs.length;
                       final totalMin = subs.fold(
                         pillar.estimatedLearnMinutes,
                         (sum, s) => sum + s.estimatedLearnMinutes,
                       );
                       final learnDays =
-                          (totalMin / 60).ceil().clamp(topicCount, 14);
+                          (totalMin / minuteBudget).ceil().clamp(topicCount, 21);
                       final revisionBuffer =
                           (topicCount * 0.3).ceil().clamp(1, 7);
                       final calculatedDays =
-                          (learnDays + revisionBuffer).clamp(1, 21);
+                          (learnDays + revisionBuffer).clamp(1, 28);
                       await ref
                           .read(goalListProvider.notifier)
-                          .importPhaseToActiveGoal(pillar, calculatedDays);
+                          .importPhaseToActiveGoal(pillar, calculatedDays, dailyMinuteBudget: minuteBudget);
                       if (ctx.mounted) {
                         ScaffoldMessenger.of(ctx).showSnackBar(
                           const SnackBar(

@@ -124,7 +124,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
       opacity: widget.isCompleted ? 0.4 : 1.0,
       duration: const Duration(milliseconds: 300),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: const EdgeInsets.fromLTRB(4, 0, 4, 14),
         decoration: BoxDecoration(
           color: widget.isCompleted ? AppColors.backgroundCard : reviseBg,
           borderRadius: BorderRadius.circular(20),
@@ -133,32 +133,6 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
                 ? AppColors.borderSubtle
                 : reviseColor.withOpacity(0.4),
           ),
-          boxShadow: widget.isCompleted
-              ? []
-              : const [
-                  BoxShadow(
-                    color: AppColors.glowPurple,
-                    blurRadius: 20,
-                    offset: Offset(0, 6),
-                  ),
-                  BoxShadow(
-                    color: Color(0x20000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-          gradient: widget.isCompleted
-              ? null
-              : LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    reviseColor.withOpacity(0.09),
-                    reviseBg,
-                    reviseBg,
-                  ],
-                  stops: const [0.0, 0.3, 1.0],
-                ),
         ),
         child: Material(
           color: Colors.transparent,
@@ -166,30 +140,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
             onTap: _handleTap,
             borderRadius: BorderRadius.circular(20),
             splashColor: reviseColor.withOpacity(0.08),
-            child: Stack(
-              children: [
-                // Left accent stripe
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  left: 0,
-                  child: Container(
-                    width: 4,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [AppColors.gradientPurpleStart, AppColors.gradientPurpleEnd],
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        bottomLeft: Radius.circular(20),
-                      ),
-                    ),
-                  ),
-                ),
-                // Content
-                Padding(
+            child: Padding(
                   padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,8 +255,6 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
                       ),
                     ],
                   ),
-                ),
-              ],
             ),
           ),
         ),
@@ -321,31 +270,13 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
       opacity: widget.isCompleted ? 0.45 : 1.0,
       duration: const Duration(milliseconds: 300),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: const EdgeInsets.fromLTRB(4, 0, 4, 14),
         decoration: BoxDecoration(
+          color: widget.isCompleted ? AppColors.backgroundCard : AppColors.backgroundCard,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: widget.isCompleted ? AppColors.borderSubtle : AppColors.borderCard,
           ),
-          gradient: widget.isCompleted
-              ? null
-              : LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    learnColor.withOpacity(0.07),
-                    AppColors.backgroundCard,
-                    AppColors.backgroundCard,
-                  ],
-                  stops: const [0.0, 0.35, 1.0],
-                ),
-          color: widget.isCompleted ? AppColors.backgroundCard : null,
-          boxShadow: widget.isCompleted
-              ? []
-              : const [
-                  BoxShadow(color: AppColors.glowBlue, blurRadius: 20, offset: Offset(0, 6)),
-                  BoxShadow(color: Color(0x1A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
         ),
         child: Material(
           color: Colors.transparent,
@@ -353,41 +284,21 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
             onTap: _handleTap,
             borderRadius: BorderRadius.circular(20),
             splashColor: learnColor.withOpacity(0.08),
-            child: Stack(
-              children: [
-                // Left accent stripe
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  left: 0,
-                  child: Container(
-                    width: 4,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [AppColors.gradientBlueStart, AppColors.gradientBlueEnd],
-                      ),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        bottomLeft: Radius.circular(20),
-                      ),
-                    ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 48),
+                    child: _buildContent('LEARN', learnColor),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
-                  child: Row(
-                    children: [
-                      _buildTypeIndicator(learnColor, Icons.menu_book_rounded),
-                      const SizedBox(width: 14),
-                      Expanded(child: _buildContent('LEARN', learnColor)),
-                      const SizedBox(width: 12),
-                      _buildCheckbox(learnColor),
-                    ],
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: _buildCheckbox(learnColor),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -637,6 +548,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
         Text(
           widget.task.title,
           style: AppTextStyles.titleMedium.copyWith(
+            fontSize: 17,
             fontWeight: FontWeight.w600,
             decoration: widget.isCompleted ? TextDecoration.lineThrough : null,
             decorationColor: AppColors.textMuted,

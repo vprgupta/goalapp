@@ -128,13 +128,15 @@ class TopicGenerator {
       if (aPhase != null && bPhase != null) {
         return aPhase.compareTo(bPhase);
       }
+      if (aPhase != null && bPhase == null) return -1;
+      if (aPhase == null && bPhase != null) return 1;
       return 0; // Maintain original order if no Phase info found
     });
   }
 
   static int? _extractSequenceIndex(String text) {
-    // 1. Look for "PHASE X" or "PART X"
-    final phaseRegex = RegExp(r'(?:PHASE|PART|PH)\s*(\d+)', caseSensitive: false);
+    // 1. Look for "PHASE X", "PART X", or "MILESTONE X"
+    final phaseRegex = RegExp(r'(?:PHASE|PART|PH|MILESTONE)\s*(\d+)', caseSensitive: false);
     final match = phaseRegex.firstMatch(text);
     if (match != null) {
       return int.tryParse(match.group(1) ?? '');

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../local/hive_service.dart';
 import '../models/goal_model.dart';
 import '../models/topic_model.dart';
@@ -52,6 +53,25 @@ class GoalRepository {
   }
 
   Future<void> deleteGoal(String id) async {
+    final goalToDelete = getGoal(id);
+
+    // Also delete all related data
+    final topicsToDelete = HiveService.topicsBox.values
+        .where((t) => t.goalId == id)
+        .toList();
+
+    // Cascade delete any child goals (sprints imported from this roadmap's pillars)
+    if (goalToDelete != null && goalToDelete.status == GoalStatus.roadmap) {
+      for (final topic in topicsToDelete) {
+        final derivedGoals = HiveService.goalsBox.values
+            .where((g) => g.name == topic.name && g.id != id)
+            .toList();
+        for (final derived in derivedGoals) {
+          await deleteGoal(derived.id); // Recursive delete
+        }
+      }
+    }
+
     await HiveService.goalsBox.delete(id);
 
     // Clear selection if this was the selected goal
@@ -59,13 +79,8 @@ class GoalRepository {
       await HiveService.settingsBox.delete(_selectedGoalKey);
     }
 
-    // Also delete all related data
-    final topicsToDelete = HiveService.topicsBox.values
-        .where((t) => t.goalId == id)
-        .map((t) => t.id)
-        .toList();
-    for (final tid in topicsToDelete) {
-      await HiveService.topicsBox.delete(tid);
+    for (final t in topicsToDelete) {
+      await HiveService.topicsBox.delete(t.id);
     }
     final daysToDelete = HiveService.dayPlansBox.values
         .where((d) => d.goalId == id)
@@ -73,6 +88,24 @@ class GoalRepository {
         .toList();
     for (final did in daysToDelete) {
       await HiveService.dayPlansBox.delete(did);
+    }
+  }
+
+  /// Cleans up any Active Goals that do not have a matching Roadmap parent.
+  /// This fixes issues where goals generated before cascade-deletion was implemented
+  /// became "zombies" and continued to appear on the dashboard after their roadmap was deleted.
+  Future<void> cleanOrphans() async {
+    final activeGoals = HiveService.goalsBox.values.where((g) => g.status == GoalStatus.active).toList();
+    for (final activeGoal in activeGoals) {
+      final hasParentRoadmap = HiveService.topicsBox.values.any((t) => 
+          t.name == activeGoal.name && 
+          HiveService.goalsBox.containsKey(t.goalId) && 
+          HiveService.goalsBox.get(t.goalId)?.status == GoalStatus.roadmap
+      );
+      if (!hasParentRoadmap) {
+        debugPrint('[GoalRepository] Deleting orphaned zombie goal: ${activeGoal.name}');
+        await deleteGoal(activeGoal.id);
+      }
     }
   }
 

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 
-/// Duration slider widget (7–90 days).
-/// Extracted from GoalSetupScreen to reduce unnecessary rebuilds.
-class DurationSlider extends StatelessWidget {
+/// Duration input widget supporting both slider (7–90 days) and custom text input.
+class DurationSlider extends StatefulWidget {
   final double days;
   final ValueChanged<double> onChanged;
 
@@ -16,6 +16,35 @@ class DurationSlider extends StatelessWidget {
   });
 
   @override
+  State<DurationSlider> createState() => _DurationSliderState();
+}
+
+class _DurationSliderState extends State<DurationSlider> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.days.round().toString());
+  }
+
+  @override
+  void didUpdateWidget(covariant DurationSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.days != widget.days) {
+      if (_controller.text != widget.days.round().toString()) {
+        _controller.text = widget.days.round().toString();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -23,17 +52,31 @@ class DurationSlider extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Duration', style: AppTextStyles.titleMedium),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.accentAmber.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${days.round()} days',
-                style:
-                    AppTextStyles.labelLarge.copyWith(color: AppColors.accentAmber),
+            Text('Duration (Days)', style: AppTextStyles.titleMedium),
+            SizedBox(
+              width: 80,
+              height: 36,
+              child: TextFormField(
+                controller: _controller,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                textAlign: TextAlign.center,
+                style: AppTextStyles.labelLarge.copyWith(color: AppColors.accentAmber),
+                decoration: InputDecoration(
+                  contentPadding: EdgeInsets.zero,
+                  filled: true,
+                  fillColor: AppColors.accentAmber.withOpacity(0.15),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onChanged: (val) {
+                  final parsed = double.tryParse(val);
+                  if (parsed != null && parsed > 0) {
+                    widget.onChanged(parsed);
+                  }
+                },
               ),
             ),
           ],
@@ -50,18 +93,21 @@ class DurationSlider extends StatelessWidget {
             overlayColor: AppColors.accentAmber.withOpacity(0.15),
           ),
           child: Slider(
-            value: days,
+            value: widget.days.clamp(7.0, 365.0),
             min: 7,
-            max: 90,
-            divisions: 83,
-            onChanged: onChanged,
+            max: 365,
+            divisions: 358,
+            onChanged: (val) {
+              _controller.text = val.round().toString();
+              widget.onChanged(val);
+            },
           ),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('7 days', style: AppTextStyles.bodySmall),
-            Text('90 days', style: AppTextStyles.bodySmall),
+            Text('365 days', style: AppTextStyles.bodySmall),
           ],
         ),
       ],

@@ -70,7 +70,7 @@ Be highly specific to "$goal". Incorporate real-world findings from the web rese
         // Takes analyst brief + trend research as grounding — output constrained
         // to master JSON template. Web research ensures real-world relevance.
         final architectPrompt = '''
-You are a pure JSON data architect. You received this strategic brief AND web research:
+You are a Lead Developer architecting a PROJECT-DRIVEN SKILL TREE. You received this strategic brief AND web research:
 
 --- STRATEGIC BRIEF ---
 $analysis
@@ -82,26 +82,21 @@ ${trendReport.toArchitectBrief()}
 
 GOAL: $goal | LEVEL: $level | DAYS: $days | PHASE COUNT: $phaseCount
 
-Generate EXACTLY $phaseCount phases for this goal. Do NOT generate more or fewer.
-
-Phase count rationale:
-- Simple/narrow goals (< 15 days): 4 phases
-- Standard goals (15-30 days): 6 phases  
-- Broad/complex goals (30-60 days): 8 phases
-- Comprehensive goals (60+ days): 10-12 phases
+Generate EXACTLY $phaseCount milestones for this goal. Do NOT generate more or fewer.
 
 Return a JSON object with exactly $phaseCount items:
 {
   "topics": [
-    { "chapter": "PHASE 1: [Theme Name]", "title": "[3-5 word specific title]", "duration_sec": 3600, "is_boss": true, "rank": "B" },
-    { "chapter": "PHASE 2: [Theme Name]", "title": "[3-5 word specific title]", "duration_sec": 3600, "is_boss": true, "rank": "B" },
-    ... (continue up to PHASE $phaseCount)
+    { "chapter": "MILESTONE 1: [Specific Project/Outcome]", "title": "[Core Technical Skill]", "duration_sec": 3600, "is_boss": true, "rank": "B" },
+    { "chapter": "MILESTONE 2: [Specific Project/Outcome]", "title": "[Core Technical Skill]", "duration_sec": 3600, "is_boss": true, "rank": "B" },
+    ... (continue up to MILESTONE $phaseCount)
   ]
 }
 
-RULES:
-- Each "chapter" MUST follow "PHASE N: Descriptive Theme" format (N = 1 to $phaseCount).
-- Each "title" is the SPECIFIC concept/tool for "$goal" at that phase — NO generic labels.
+RULES (CRITICAL):
+- NO TEXTBOOK PHASES. Never use generic titles like "Phase 1: Basics" or "Introduction to X".
+- Every "chapter" MUST be formatted as "MILESTONE N: [Actionable Outcome]". Example: "MILESTONE 1: Build a Responsive Portfolio Layout".
+- Every "title" must be the specific technical skill required for that milestone (e.g., "CSS Grid & Flexbox").
 - Phases 1-2: foundational (rank B, duration 2400-3600)
 - Phases 3 to ${phaseCount - 2}: intermediate/advanced (rank A, duration 3600-5400)
 - Last 2 phases: capstone/integration (rank S, duration 5400-7200)
@@ -121,20 +116,19 @@ RULES:
         // Self-correcting pass — the model inspects its own output and patches
         // any ordering issues, generic titles, or missing fields before parse.
         final criticPrompt = '''
-You are a Roadmap Quality Inspector. Review this roadmap JSON for goal "$goal" at "$level" level over $days days.
-Expected phase count: $phaseCount.
+You are a Senior Technical Reviewer. Review this roadmap JSON for goal "$goal" at "$level" level over $days days.
+Expected milestone count: $phaseCount.
 
 ROADMAP TO REVIEW:
 ${archBuffer.toString()}
 
 CHECKLIST — silently fix any issues, then return the corrected JSON:
-1. Exactly $phaseCount phases present? If more/fewer, merge or add phases to reach $phaseCount.
-2. Each chapter follows "PHASE N: Theme" format with sequential numbering?
-3. Titles SPECIFIC to "$goal"? Reject generic labels like "Advanced Topics".
+1. Exactly $phaseCount milestones present? If more/fewer, merge or add phases to reach $phaseCount.
+2. Each chapter follows "MILESTONE N: [Outcome]" format? If it says "Phase 1: Basics", REWRITE it into a tangible project milestone.
+3. Titles are SPECIFIC technical skills (e.g., "Docker Networking")? Reject generic labels like "Advanced Topics".
 4. Phase ORDER logical — foundational before advanced?
 5. Rank progression: first 2 = B, middle = A, last 2 = S?
-6. duration_sec values realistic for $days days? (scale down if days < 10)
-7. JSON valid and parseable?
+6. JSON valid and parseable?
 
 Return ONLY the corrected JSON object. No explanation. No markdown.
 ''';

@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../providers/goal_provider.dart';
 import '../../../data/models/goal_model.dart';
+import '../../../data/local/hive_service.dart';
 
 class GoalListScreen extends ConsumerWidget {
   const GoalListScreen({super.key});
@@ -16,15 +17,19 @@ class GoalListScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundDark,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/create'),
-        backgroundColor: AppColors.accentAmber,
-        foregroundColor: AppColors.backgroundDark,
-        elevation: 0,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'New Roadmap',
-          style: TextStyle(fontWeight: FontWeight.w700),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 88),
+        child: FloatingActionButton.extended(
+          onPressed: () => context.push('/create'),
+          backgroundColor: AppColors.accentAmber,
+          foregroundColor: AppColors.backgroundDark,
+          elevation: 4,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text(
+            'New Roadmap',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
       ),
       body: SafeArea(
@@ -93,9 +98,9 @@ class GoalListScreen extends ConsumerWidget {
               child: roadmaps.isEmpty
                   ? _EmptyState()
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 120),
                       itemCount: roadmaps.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (ctx, i) {
                         final r = roadmaps[i];
                         return _RoadmapTile(
@@ -178,79 +183,212 @@ class _RoadmapTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final date =
         '${roadmap.createdAt.day}/${roadmap.createdAt.month}/${roadmap.createdAt.year}';
+    int completedPhases = 0;
+    int totalPhases = 0;
+    
+    if (HiveService.isBoxOpen('topics') && HiveService.isBoxOpen('goals')) {
+      final allGoals = HiveService.goalsBox.values.toList();
+      final roadmapTopics = HiveService.topicsBox.values.where((t) => t.goalId == roadmap.id).toList();
+      final pillars = roadmapTopics.where((t) => t.moduleName?.toUpperCase().startsWith('PHASE') == true || t.moduleName?.toUpperCase().startsWith('MILESTONE') == true || (t.moduleName == null && !t.isBlueprintGenerated)).toList();
+      totalPhases = pillars.length;
+      
+      for (final pillar in pillars) {
+        if (allGoals.any((g) => g.status.name == 'completed' && g.name == pillar.name)) {
+          completedPhases++;
+        }
+      }
+    }
+    
+    final progress = totalPhases > 0 ? (completedPhases / totalPhases).clamp(0.0, 1.0) : 0.0;
+    final progressPercent = (progress * 100).round();
+    final isActive = roadmap.status.name == 'active';
+    final isCompleted = roadmap.status.name == 'completed';
+
+    final statusColor = isCompleted
+        ? AppColors.accentGreen
+        : isActive
+            ? AppColors.accentAmber
+            : AppColors.textMuted;
+    final statusLabel = isCompleted
+        ? 'COMPLETED'
+        : isActive
+            ? 'ACTIVE'
+            : 'IDLE';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.borderCard),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(18, 18, 14, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Leading icon
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundElevated,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderCard),
-                  ),
-                  child: const Icon(Icons.map_rounded,
-                      color: AppColors.accentAmber, size: 20),
-                ),
-                const SizedBox(width: 14),
-                // Text
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        roadmap.name,
-                        style: AppTextStyles.titleMedium.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                // ── Top row: icon + title + delete ────────────────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundElevated,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.borderCard),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${roadmap.level}  ·  ${roadmap.totalDays} days  ·  $date',
-                        style: AppTextStyles.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: const Icon(Icons.map_rounded,
+                          color: AppColors.accentAmber, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            roadmap.name,
+                            style: AppTextStyles.titleLarge.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 5),
+                          Row(
+                            children: [
+                              // Status badge
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: statusColor.withOpacity(0.35)),
+                                ),
+                                child: Text(
+                                  statusLabel,
+                                  style: TextStyle(
+                                    fontFamily: 'Outfit',
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: statusColor,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '${roadmap.level}  ·  ${roadmap.totalDays}d  ·  $date',
+                                  style: AppTextStyles.bodySmall.copyWith(
+                                      fontSize: 11),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    IconButton(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          size: 18, color: AppColors.textMuted),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
                 ),
-                // Trailing
-                IconButton(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      size: 18, color: AppColors.textMuted),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+
+                const SizedBox(height: 16),
+
+                // ── Progress bar ───────────────────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Progress',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              Text(
+                                totalPhases > 0 ? '$completedPhases of $totalPhases Phases  ·  $progressPercent%' : 'Day ${roadmap.currentDay} of ${roadmap.totalDays}  ·  $progressPercent%',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Stack(
+                              children: [
+                                // Track
+                                Container(
+                                  height: 7,
+                                  color: AppColors.progressTrack,
+                                ),
+                                // Fill
+                                FractionallySizedBox(
+                                  widthFactor: progress,
+                                  child: Container(
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isCompleted
+                                            ? [
+                                                AppColors.accentGreen,
+                                                AppColors.accentGreen,
+                                              ]
+                                            : [
+                                                AppColors.gradientAmberStart,
+                                                AppColors.gradientAmberEnd,
+                                              ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: AppColors.textMuted, size: 22),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.textMuted, size: 20),
               ],
             ),
           ),

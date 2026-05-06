@@ -86,6 +86,9 @@ class TopicModel extends HiveObject {
   @HiveField(26)
   late int sortOrder; // Logical sequence index
 
+  @HiveField(27, defaultValue: 5)
+  late int cognitiveLoad; // 1-10
+
   TopicModel({
     required this.id,
     required this.goalId,
@@ -114,6 +117,7 @@ class TopicModel extends HiveObject {
     this.stability = 0.0,
     this.difficulty = 0.0,
     this.sortOrder = 0,
+    this.cognitiveLoad = 5,
   })  : scheduledRevisions = scheduledRevisions ?? [],
         completedRevisions = completedRevisions ?? [],
         subTopics = subTopics ?? [],

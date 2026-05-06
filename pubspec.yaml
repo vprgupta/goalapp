@@ -40,6 +40,10 @@ dependencies:
   file_picker: ^11.0.2
   syncfusion_flutter_pdf: ^33.1.49
   home_widget: ^0.9.1
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+  flutter_timezone: ^5.0.2
+  shared_preferences: ^2.3.5
 
 dev_dependencies:
   flutter_test:

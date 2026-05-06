@@ -27,13 +27,14 @@ class GoalModelAdapter extends TypeAdapter<GoalModel> {
       topicIds: (fields[7] as List?)?.cast<String>(),
       topicStrengths: (fields[8] as Map?)?.cast<String, double>(),
       isDraft: fields[9] as bool,
+      dailyMinuteBudget: (fields[10] as int?) ?? 60,
     );
   }
 
   @override
   void write(BinaryWriter writer, GoalModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class GoalModelAdapter extends TypeAdapter<GoalModel> {
       ..writeByte(8)
       ..write(obj.topicStrengths)
       ..writeByte(9)
-      ..write(obj.isDraft);
+      ..write(obj.isDraft)
+      ..writeByte(10)
+      ..write(obj.dailyMinuteBudget);
   }
 
   @override

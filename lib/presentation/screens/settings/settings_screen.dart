@@ -116,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'X-Title': 'GoalApp',
         },
         body: jsonEncode({
-          'model': LlmConfig.openRouterModel,
+          'model': LlmConfig.openRouterModels.first,
           'max_tokens': 5,
           'messages': [
             {'role': 'user', 'content': 'Hi'}
@@ -201,23 +201,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: AppColors.backgroundDark,
       body: Stack(
         children: [
-          // Ambient glow
-          Positioned(
-            top: -80,
-            right: -60,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0x0DFFA726),
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: const SizedBox(),
-              ),
-            ),
-          ),
+
           SafeArea(
             child: CustomScrollView(
               slivers: [
@@ -382,21 +366,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                AppColors.gradientAmberStart,
-                                AppColors.gradientAmberEnd,
-                              ],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
+                            color: AppColors.accentAmber,
                             borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                  color: AppColors.glowAmber,
-                                  blurRadius: 20,
-                                  offset: Offset(0, 6)),
-                            ],
                           ),
                           child: Material(
                             color: Colors.transparent,
@@ -415,12 +386,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         height: 18,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: Colors.white,
+                                          color: AppColors.backgroundDark,
                                         ),
                                       )
                                     else
                                       const Icon(Icons.save_rounded,
-                                          color: Colors.white, size: 20),
+                                          color: AppColors.backgroundDark, size: 20),
                                     const SizedBox(width: 10),
                                     Text(
                                       _saving ? 'Saving...' : 'Save API Keys',
@@ -428,7 +399,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         fontFamily: 'Outfit',
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
-                                        color: Colors.white,
+                                        color: AppColors.backgroundDark,
                                       ),
                                     ),
                                   ],
@@ -484,20 +455,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.accentAmber.withOpacity(0.18),
-                    AppColors.accentAmber.withOpacity(0.06),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: AppColors.backgroundElevated,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: AppColors.accentAmber.withOpacity(0.35), width: 1.5),
-                boxShadow: const [
-                  BoxShadow(color: AppColors.glowAmber, blurRadius: 16),
-                ],
+                border: Border.all(color: AppColors.borderCard),
               ),
               child: const Icon(Icons.key_rounded,
                   color: AppColors.accentAmber, size: 26),
@@ -561,34 +521,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            accentColor.withOpacity(0.06),
-            AppColors.backgroundCard,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderCard),
-        boxShadow: const [
-          BoxShadow(color: Color(0x1A000000), blurRadius: 12, offset: Offset(0, 4)),
-        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left accent stripe
-            Container(
-              height: 3,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [accentColor, accentColor.withOpacity(0.2)],
-                ),
-              ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
               child: Column(
@@ -706,15 +647,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Icon(Icons.open_in_new_rounded,
                             size: 12, color: accentColor.withOpacity(0.7)),
                         const SizedBox(width: 5),
-                        Text(
-                          'Get free key → $getUrl',
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: accentColor.withOpacity(0.7),
-                            fontSize: 10,
-                            decoration: TextDecoration.underline,
-                            decorationColor: accentColor.withOpacity(0.4),
+                        Flexible(
+                          child: Text(
+                            'Get free key → $getUrl',
+                            style: AppTextStyles.labelSmall.copyWith(
+                              color: accentColor.withOpacity(0.7),
+                              fontSize: 10,
+                              decoration: TextDecoration.underline,
+                              decorationColor: accentColor.withOpacity(0.4),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

@@ -46,6 +46,9 @@ class GoalModel extends HiveObject {
   @HiveField(9)
   late bool isDraft; // Marks if the generation failed/crashed midway
 
+  @HiveField(10, defaultValue: 60)
+  late int dailyMinuteBudget; // Minutes the user has available per day
+
   GoalModel({
     required this.id,
     required this.name,
@@ -57,6 +60,7 @@ class GoalModel extends HiveObject {
     List<String>? topicIds,
     Map<String, double>? topicStrengths,
     this.isDraft = false,
+    this.dailyMinuteBudget = 60,
   })  : topicIds = topicIds ?? [],
         topicStrengths = topicStrengths ?? {};
 

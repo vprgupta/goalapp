@@ -234,25 +234,37 @@ Rules:
               ? trendsResearch.substring(0, 1500)
               : trendsResearch);
 
-      final request = http.Request('POST', url);
-      request.headers['Content-Type'] = 'application/json';
-      request.headers['Authorization'] = 'Bearer ${LlmConfig.openRouterApiKey}';
-      request.headers['HTTP-Referer'] = 'https://goalapp.dev';
-      request.body = jsonEncode({
-        'model': LlmConfig.openRouterModel, // fast Gemini model for parsing
-        'stream': false,
-        'messages': [
-          {'role': 'user', 'content': filledPrompt},
-        ],
-        'max_tokens': 500,
-      });
+      Exception? lastException;
+      for (final model in LlmConfig.openRouterModels) {
+        final request = http.Request('POST', url);
+        request.headers['Content-Type'] = 'application/json';
+        request.headers['Authorization'] = 'Bearer ${LlmConfig.openRouterApiKey}';
+        request.headers['HTTP-Referer'] = 'https://goalapp.dev';
+        request.body = jsonEncode({
+          'model': model,
+          'stream': false,
+          'messages': [
+            {'role': 'user', 'content': filledPrompt},
+          ],
+          'max_tokens': 500,
+        });
 
-      final response = await client.send(request).timeout(const Duration(seconds: 30));
-      final body = await response.stream.bytesToString();
-      final data = jsonDecode(body);
-      final raw = data['choices']?[0]?['message']?['content'] as String? ?? '{}';
-
-      return _parseTrendJson(raw, roadmapResearch, trendsResearch);
+        try {
+          final response = await client.send(request).timeout(const Duration(seconds: 30));
+          final body = await response.stream.bytesToString();
+          
+          if (response.statusCode == 200) {
+            final data = jsonDecode(body);
+            final raw = data['choices']?[0]?['message']?['content'] as String? ?? '{}';
+            return _parseTrendJson(raw, roadmapResearch, trendsResearch);
+          } else {
+            lastException = Exception('OpenRouter Parsing Error ${response.statusCode} (Model: $model): $body');
+          }
+        } catch (e) {
+          lastException = e is Exception ? e : Exception(e.toString());
+        }
+      }
+      throw lastException ?? Exception('All OpenRouter models failed to parse research');
     } finally {
       client.close();
     }

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:isolate';
 import 'base_llm_service.dart';
+import 'roadmap_template_registry.dart';
+import '../engines/topic_order_validator.dart';
 
 class DynamicLearningService {
   final BaseLlmService _llmService;
@@ -18,12 +20,20 @@ class DynamicLearningService {
     int? dailyMinutes,
     void Function(String)? onProgress,
   }) async {
+    // Inject domain-specific constraint for better accuracy
+    final domainConstraint = RoadmapTemplateRegistry.getConstraint(
+      goalName: goal,
+      level: level,
+    );
+
     final systemPrompt = """
 You are an expert AI Blueprint Specialist. Generate an ULTRA-ATOMIC, ORDERED blueprint for a specific pillar.
 
 TOTAL GOAL: $goal
 STRATEGIC PILLAR: $pillarName
 SKILL LEVEL: $level
+
+$domainConstraint
 
 Break down '$pillarName' into 4-7 Knowledge Nodes in STRICT LEARNING ORDER.
 
@@ -39,6 +49,7 @@ ATOMIC RULES:
 - Example for 'File Permissions': ['ls -l notation', 'chmod numeric vs symbolic', 'chown usage', 'sticky bits', 'umask defaults'].
 - learning_order: sequential integer starting at 1 (defines the study order).
 - tier: 1=foundational, 2=intermediate, 3=advanced.
+- cognitive_load: 1-10 integer based on conceptual difficulty (1=syntax/memorization, 10=complex architecture/abstract).
 
 JSON SCHEMA:
 {
@@ -51,7 +62,8 @@ JSON SCHEMA:
       "module_name": "$pillarName",
       "prerequisites": [],
       "weight": 1.0,
-      "estimated_time_minutes": 35,
+      "estimated_time_minutes": 30,
+      "cognitive_load": 3,
       "is_boss": false,
       "tier": 1
     },
@@ -64,6 +76,7 @@ JSON SCHEMA:
       "prerequisites": ["slug_1"],
       "weight": 1.0,
       "estimated_time_minutes": 45,
+      "cognitive_load": 6,
       "is_boss": false,
       "tier": 2
     }
@@ -108,7 +121,7 @@ Return ONLY valid JSON. No markdown. No explanation.
         return aOrder.compareTo(bOrder);
       });
 
-      return graph.map((node) {
+      final rawTopics = graph.map((node) {
         final List<dynamic> subs = node['subtopics'] as List<dynamic>? ?? [];
         return {
           'id': node['id']?.toString() ?? '',
@@ -119,10 +132,15 @@ Return ONLY valid JSON. No markdown. No explanation.
           'prerequisites': (node['prerequisites'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
           'weight': (node['weight'] as num?)?.toDouble() ?? 0.5,
           'estimated_time_minutes': (node['estimated_time_minutes'] as num?)?.toInt() ?? 30,
+          'cognitive_load': (node['cognitive_load'] as num?)?.toInt() ?? 5,
           'is_boss': node['is_boss'] as bool? ?? false,
           'tier': int.tryParse(node['tier']?.toString() ?? '1') ?? 1,
         };
       }).toList();
+
+      // Validate and fix prerequisite ordering
+      return TopicOrderValidator.validate(rawTopics);
+
       
     } catch (e) {
       throw Exception('Knowledge Graph Generation Failed: $e');

@@ -4,6 +4,7 @@ import '../providers/goal_provider.dart';
 import '../providers/generation_provider.dart';
 import '../providers/service_providers.dart';
 import '../../domain/engines/task_distributor.dart';
+import '../../domain/services/resource_service.dart';
 
 final deepDiveProvider = StateNotifierProvider<DeepDiveNotifier, Set<String>>((ref) {
   return DeepDiveNotifier(ref);
@@ -42,21 +43,37 @@ class DeepDiveNotifier extends StateNotifier<Set<String>> {
       );
 
       _ref.read(generationProvider.notifier).append("\n\n--- BLUEPRINT CAPTURED ---\n");
+      
+      // Stage 3: Bulk Pre-compute Resources (Learning Hub)
+      final resourceService = ResourceService();
+      final bulkResourcesMap = await resourceService.bulkGenerateResources(
+        goalName: goal.name,
+        pillarName: pillar.name,
+        level: goal.level,
+        topicsJson: graphNodes,
+        onProgress: (chunk) => _ref.read(generationProvider.notifier).append(chunk),
+      );
+
       _ref.read(generationProvider.notifier).append("Integrating atomic nodes into your roadmap...\n");
 
       // Convert nodes to TopicModels
       final List<TopicModel> newSubTopics = graphNodes.map((node) {
+        final nodeId = node['id'] as String;
+        final mappedResources = bulkResourcesMap[nodeId] ?? [];
+
         return TopicModel(
-          id: '${goal.id}_${node['id']}',
+          id: '${goal.id}_$nodeId',
           goalId: goal.id,
           name: node['concept'] as String,
           tier: node['tier'] as int,
           estimatedLearnMinutes: node['estimated_time_minutes'] as int,
+          cognitiveLoad: node['cognitive_load'] as int,
           moduleName: pillar.name, // Link to the parent pillar
           isBoss: node['is_boss'] as bool,
           weight: node['weight'] as double,
           prerequisites: (node['prerequisites'] as List<dynamic>).map((p) => '${goal.id}_$p').toList(),
           subTopics: (node['subtopics'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+          resources: mappedResources, // Save pre-computed resources!
           isBlueprintGenerated: true,
         );
       }).toList();
