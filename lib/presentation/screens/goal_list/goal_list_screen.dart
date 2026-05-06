@@ -188,16 +188,28 @@ class _RoadmapTile extends StatelessWidget {
     
     if (HiveService.isBoxOpen('topics') && HiveService.isBoxOpen('goals')) {
       final allGoals = HiveService.goalsBox.values.toList();
-      final roadmapTopics = HiveService.topicsBox.values.where((t) => t.goalId == roadmap.id).toList();
-      final pillars = roadmapTopics.where((t) => t.moduleName?.toUpperCase().startsWith('PHASE') == true || t.moduleName?.toUpperCase().startsWith('MILESTONE') == true || (t.moduleName == null && !t.isBlueprintGenerated)).toList();
+      final roadmapTopics = HiveService.topicsBox.values
+          .where((t) => t.goalId == roadmap.id)
+          .toList();
+
+      // W10: Use isBoss==true as the reliable phase-end marker.
+      // Each roadmap phase ends with a boss topic (set by AiService).
+      // Fall back to counting all top-level topics if no boss topics exist.
+      final bossPillars = roadmapTopics.where((t) => t.isBoss).toList();
+      final pillars = bossPillars.isNotEmpty
+          ? bossPillars
+          : roadmapTopics.where((t) => !t.isBlueprintGenerated).toList();
       totalPhases = pillars.length;
-      
+
       for (final pillar in pillars) {
-        if (allGoals.any((g) => g.status.name == 'completed' && g.name == pillar.name)) {
+        // A phase is "completed" if there is a GoalStatus.completed sprint with the same name
+        if (allGoals.any((g) =>
+            g.status == GoalStatus.completed && g.name == pillar.name)) {
           completedPhases++;
         }
       }
     }
+
     
     final progress = totalPhases > 0 ? (completedPhases / totalPhases).clamp(0.0, 1.0) : 0.0;
     final progressPercent = (progress * 100).round();

@@ -263,6 +263,54 @@ class GoalRepository {
     await HiveService.dayPlansBox.put(dayPlanId, dayPlan);
   }
 
+  /// F1: Actually moves pending tasks from [incompletePlanIds] into today's
+  /// active day plan, then marks the past days as completed.
+  /// Returns the number of tasks moved so the UI can confirm.
+  Future<int> rescheduleIncompleteTasks({
+    required List<String> incompletePlanIds,
+    required String goalId,
+  }) async {
+    // Find today's active (unlocked, not completed) plan
+    final todayPlan = getCurrentDayPlan(goalId);
+    if (todayPlan == null) return 0;
+
+    int movedCount = 0;
+
+    for (final pastPlanId in incompletePlanIds) {
+      final pastPlan = HiveService.dayPlansBox.get(pastPlanId);
+      if (pastPlan == null || pastPlan.id == todayPlan.id) continue;
+
+      // Collect all pending tasks from the past day
+      final pendingTasks = pastPlan.tasks
+          .where((t) => t.status == TaskStatus.pending)
+          .toList();
+
+      if (pendingTasks.isNotEmpty) {
+        // Relink each task to today's day plan
+        for (final task in pendingTasks) {
+          task.dayPlanId = todayPlan.id;
+          task.sortOrder = todayPlan.tasks.length + movedCount;
+        }
+
+        // Append them to today's task list
+        todayPlan.tasks = [...todayPlan.tasks, ...pendingTasks];
+        movedCount += pendingTasks.length;
+      }
+
+      // Mark the past day as completed so it stops appearing in the catch-up count
+      pastPlan.isCompleted = true;
+      pastPlan.completedAt = DateTime.now();
+      await HiveService.dayPlansBox.put(pastPlanId, pastPlan);
+    }
+
+    // Save the updated today plan with the new tasks appended
+    if (movedCount > 0) {
+      await HiveService.dayPlansBox.put(todayPlan.id, todayPlan);
+    }
+
+    return movedCount;
+  }
+
   Future<void> updateGoalComplete(String goalId) async {
     final goal = getGoal(goalId);
     if (goal != null) {

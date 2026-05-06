@@ -161,10 +161,27 @@ class GoalListNotifier extends StateNotifier<List<GoalModel>> {
     // 1. Get all topics generated for this roadmap
     final allRoadmapTopics = _repo.getTopicsForGoal(pillar.goalId);
     
-    // We want the pillar itself, plus any atomic topics belonging to it
-    final syllabusTopics = allRoadmapTopics
-        .where((t) => t.id == pillar.id || t.moduleName == pillar.name)
-        .toList();
+    // We want the pillar itself, plus any atomic topics belonging to it.
+    // Three matching strategies to handle both static DB and AI-generated roadmaps:
+    //   1. Exact ID match (the pillar topic itself)
+    //   2. moduleName == pillar.name (static/blueprint topics)
+    //   3. moduleName or chapter CONTAINS pillar.name (AI roadmap: "MILESTONE 1: CSS Grid" ⊇ "CSS Grid")
+    final syllabusTopics = allRoadmapTopics.where((t) {
+      if (t.id == pillar.id) return true;
+      if (t.moduleName == pillar.name) return true;
+      if (t.moduleName != null && t.moduleName!.contains(pillar.name)) return true;
+      return false;
+    }).toList();
+
+    // If still only the pillar itself matched, pull every topic from this module group
+    // by matching on the pillar's own moduleName (covers roadmaps with chapter grouping)
+    if (syllabusTopics.length <= 1 && pillar.moduleName != null) {
+      final byModule = allRoadmapTopics
+          .where((t) => t.moduleName == pillar.moduleName && t.id != pillar.id)
+          .toList();
+      syllabusTopics.addAll(byModule);
+    }
+
 
     // 2. Create the new Active Goal (The Sprint)
     final newGoalId = _uuid.v4();
@@ -197,8 +214,10 @@ class GoalListNotifier extends StateNotifier<List<GoalModel>> {
         moduleName: t.moduleName,
         isBoss: t.isBoss,
         weight: t.weight,
+        cognitiveLoad: t.cognitiveLoad,
         prerequisites: [], // Removed for the sprint to allow flexible scheduling
         subTopics: List.from(t.subTopics),
+        resources: List.from(t.resources), // W4: carry over pre-fetched resources
         isBlueprintGenerated: t.isBlueprintGenerated,
         sortOrder: sortIdx++, // Maintain sequence
       );
@@ -337,6 +356,15 @@ class DayPlanNotifier extends StateNotifier<DayPlanModel?> {
       if (topic?.isBoss == true) xpAmount = UserProgressService.xpBossTopic;
       await UserProgressService.awardXp(xpAmount);
       await UserProgressService.recordActivity();
+
+      // W3: Mark learnedOnDay when a learn task is completed
+      if (task.type == TaskType.learn) {
+        final learnTopic = _repo.getTopic(topicId);
+        if (learnTopic != null && learnTopic.learnedOnDay == 0) {
+          learnTopic.learnedOnDay = state!.dayNumber;
+          await _repo.saveTopic(learnTopic);
+        }
+      }
     }
 
     // 3. Update topic strength if recall answered

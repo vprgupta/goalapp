@@ -70,5 +70,7 @@ class GoalModel extends HiveObject {
     return sum / topicStrengths.length;
   }
 
-  double get progressPercent => currentDay / totalDays;
+  /// 0.0 on day 1 (no work done yet), 1.0 after all days completed.
+  double get progressPercent => totalDays <= 0 ? 0.0 : ((currentDay - 1) / totalDays).clamp(0.0, 1.0);
+
 }

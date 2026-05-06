@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../data/models/goal_model.dart';
 import '../../../data/models/task_model.dart';
+
 import '../../providers/goal_provider.dart';
 import 'task_card_widget.dart';
 import 'key_concepts_dialog.dart';
@@ -23,11 +26,19 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _showCompleteOverlay = false;
   bool _showPhaseComplete = false;
+  // F9: XP snapshot taken when the last day starts advancing, so the
+  // celebration overlay shows the real XP earned during this sprint.
+  int _sprintStartXp = 0;
+  // G6: show the welcome-back banner at most once per session
+  bool _welcomeBackShown = false;
 
   Future<void> _onTaskComplete(TaskModel task, {bool? recallCorrect}) async {
+    // F5: Guard — never process an already-completed task
+    if (task.isDone) return;
+
     List<String>? subTopics;
 
-    if (task.isLearn && !task.isDone) {
+    if (task.isLearn) {
       final topic = ref.read(goalRepositoryProvider).getTopic(task.topicId);
       final result = await showDialog<List<String>>(
         context: context,
@@ -56,11 +67,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   Future<void> _onDayAdvance() async {
     setState(() => _showCompleteOverlay = false);
+
+    // F9: Snapshot current XP before the advance so we can compute the delta
+    _sprintStartXp = UserProgressService.totalXp;
+
     await ref.read(currentDayPlanProvider.notifier).advanceToNextDay();
 
+    // F2: Invalidate so the provider re-reads the updated GoalStatus from Hive
+    // before we check whether the sprint is now completed.
+    ref.invalidate(goalListProvider);
+    // Allow one microtask cycle for the provider graph to settle
+    await Future.microtask(() {});
+
     final goal = ref.read(activeGoalProvider);
-    if (goal?.status.name == 'completed' && mounted) {
-      // Show phase completion celebration instead of navigating immediately
+    if (goal?.status == GoalStatus.completed && mounted) {
+      // Show phase completion celebration
       setState(() => _showPhaseComplete = true);
     }
   }
@@ -104,9 +125,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 cacheExtent: 600,
                 slivers: [
                   SliverToBoxAdapter(child: _buildHeader(goal, dayPlan)),
+                  SliverToBoxAdapter(child: _buildGreetingBar()),    // G3
                   SliverToBoxAdapter(child: _buildStreakXpBar()),
+                  // G2: streak urgency — only visible after 6 PM if tasks remain
+                  if (dayPlan != null && !dayPlan.allTasksDone)
+                    SliverToBoxAdapter(child: _buildStreakUrgencyBanner(UserProgressService.currentStreak)),
+                  SliverToBoxAdapter(child: _buildWelcomeBackBanner()), // G6
                   SliverToBoxAdapter(child: _buildMotivationBanner(dayPlan, goal)),
                   if (dayPlan != null) SliverToBoxAdapter(child: _buildCatchUpBanner(dayPlan, goal)),
+                  SliverToBoxAdapter(child: _buildWeeklyDots(goal)),  // G8
+
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
@@ -164,6 +192,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               isCompleted: task.isDone,
                               isExpanded: isExpanded,
                               isExpanding: isExpanding,
+                              isBoss: topic?.isBoss ?? false, // G4
                               onDeepDive: () {
                                 if (topic != null) {
                                   ref
@@ -195,24 +224,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
 
-          // Day Complete Overlay
-          if (_showCompleteOverlay && dayPlan != null)
-            DayCompleteOverlay(
-              dayPlan: dayPlan,
-              goal: goal,
-              onContinue: _onDayAdvance,
-            ),
-
-          // Phase Complete Celebration
+          // F6: Overlays are mutually exclusive — only one can show at a time
           if (_showPhaseComplete)
             PhaseCompletionOverlay(
               phaseName: goal.name,
               topicsCompleted: goal.topicIds.length,
-              xpEarned: goal.topicIds.length * UserProgressService.xpLearnTopic + UserProgressService.xpPerfectDay,
+              // F9: Show the real XP earned since the sprint started
+              xpEarned: (UserProgressService.totalXp - _sprintStartXp).clamp(0, 9999),
               onContinue: () {
                 setState(() => _showPhaseComplete = false);
                 context.go('/complete');
               },
+            )
+          else if (_showCompleteOverlay && dayPlan != null)
+            DayCompleteOverlay(
+              dayPlan: dayPlan,
+              goal: goal,
+              onContinue: _onDayAdvance,
             ),
         ],
       ),
@@ -562,22 +590,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildCatchUpBanner(dynamic dayPlan, dynamic goal) {
-    // Detect if there are tasks from previous days that are incomplete
+    // F8: Use ref.watch via dayPlansProvider so the banner disappears reactively
     final goalId = goal.id as String;
-    final allDayPlans = ref.read(goalRepositoryProvider).getDayPlansForGoal(goalId);
+    final allDayPlans = ref.watch(dayPlansProvider(goalId));
     final currentDayNum = goal.currentDay as int;
 
     final incomplete = allDayPlans.where((dp) {
-      return !(dp.isCompleted as bool) &&
-          (dp.dayNumber as int) < currentDayNum &&
-          dp.tasks.any((t) => !(t.isDone as bool));
+      return !dp.isCompleted &&
+          dp.dayNumber < currentDayNum &&
+          dp.tasks.any((t) => !t.isDone);
     }).toList();
 
     if (incomplete.isEmpty) return const SizedBox.shrink();
 
     final overdueCount = incomplete.fold<int>(
       0,
-      (int sum, dynamic dp) => sum + (dp.tasks as List).where((t) => !(t.isDone as bool)).length,
+      (sum, dp) => sum + dp.tasks.where((t) => !t.isDone).length,
     );
 
     return GestureDetector(
@@ -648,15 +676,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
     if (confirmed != true) return;
-    // Mark past incomplete day plans as completed to push tasks forward
-    for (final plan in incompletePlans) {
-      await ref.read(goalRepositoryProvider).markDayComplete(plan.id as String);
-    }
-    // Refresh state
+
+    // F1: Actually move pending tasks into today's plan, then mark past days complete
+    final repo = ref.read(goalRepositoryProvider);
+    final planIds = incompletePlans.map((p) => p.id as String).toList();
+    final movedCount = await repo.rescheduleIncompleteTasks(
+      incompletePlanIds: planIds,
+      goalId: goal.id as String,
+    );
+
+    // Refresh both the day plan and the day plans list
     ref.invalidate(currentDayPlanProvider);
+    ref.invalidate(dayPlansProvider(goal.id as String));
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tasks rescheduled to today ✅')),
+        SnackBar(
+          content: Text(
+            movedCount > 0
+                ? '$movedCount overdue task${movedCount == 1 ? '' : 's'} moved to today ✅'
+                : 'No pending tasks found to reschedule.',
+          ),
+        ),
       );
     }
   }
@@ -667,10 +708,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final pending = dayPlan.pendingCount;
     final bool allDone = pending == 0;
 
-    // Today's total estimated time
+    // Today's total estimated time — F11: null-safe cast
     final int todayMinutes = (dayPlan.tasks as List)
         .where((t) => !(t.isDone as bool))
-        .fold<int>(0, (int sum, dynamic t) => sum + (t.estimatedMinutes as int));
+        .fold<int>(0, (int sum, dynamic t) => sum + ((t.estimatedMinutes as int?) ?? 0));
     final String timeLabel = todayMinutes > 0
         ? '~${todayMinutes}min'
         : '';
@@ -783,6 +824,236 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  } // _buildEmptyState
+
+  // G3: Time-of-day contextual greeting
+  Widget _buildGreetingBar() {
+    final hour = DateTime.now().hour;
+    final streak = UserProgressService.currentStreak;
+    final broken = UserProgressService.isStreakBroken;
+    String text;
+    String emoji;
+    if (broken && streak > 0) {
+      text = 'Welcome back! Let\'s restart your streak 💪';
+      emoji = '👋';
+    } else if (streak >= 7) {
+      text = '$streak-day streak — you\'re on fire!';
+      emoji = '🔥';
+    } else if (hour < 12) {
+      text = 'Good morning! Ready to grow?';
+      emoji = '🌅';
+    } else if (hour < 17) {
+      text = 'Keep the momentum going';
+      emoji = '⚡';
+    } else if (hour < 21) {
+      text = 'Evening session — you\'ve got this';
+      emoji = '🌙';
+    } else {
+      text = 'Late-night grind mode activated';
+      emoji = '🔥';
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 6, 22, 0),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 15)),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // G2: Streak urgency — shown when it's evening and no tasks done yet
+  // Embedded directly in _buildStreakXpBar via an urgency color shift
+  // (The existing _buildStreakXpBar already shows isStreakBroken greyed out;
+  // this override adds a pulsing warning banner at the top of the XP bar row.)
+  Widget _buildStreakUrgencyBanner(int streak) {
+    final hour = DateTime.now().hour;
+    if (hour < 18 || streak == 0) return const SizedBox.shrink();
+    final remaining = 24 - hour;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.accentAmber.withOpacity(0.18),
+            AppColors.accentAmber.withOpacity(0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accentAmber.withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '⚡ $remaining h left — protect your $streak-day streak!',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.accentAmber,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ).animate(onPlay: (c) => c.repeat(reverse: true))
+        .tint(color: AppColors.accentAmber.withOpacity(0.04),
+            duration: 900.ms, curve: Curves.easeInOut);
+  }
+
+  // G6: Welcome-back banner — shown once per session when streak is broken
+  Widget _buildWelcomeBackBanner() {
+    if (!UserProgressService.isStreakBroken || _welcomeBackShown) {
+      return const SizedBox.shrink();
+    }
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) { if (mounted) setState(() => _welcomeBackShown = true); });
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          AppColors.accentTeal.withOpacity(0.12),
+          AppColors.backgroundElevated,
+        ]),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accentTeal.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Text('👋', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Welcome back!',
+                    style: AppTextStyles.titleMedium
+                        .copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  'Streak resets to 1 — but your progress is safe. Let\'s go! 💪',
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 500.ms).slideY(begin: -0.15, end: 0);
+  }
+
+  // G8: Weekly activity dots — last 7 days
+  Widget _buildWeeklyDots(GoalModel goal) {
+    final allPlans = ref.read(goalRepositoryProvider).getDayPlansForGoal(goal.id);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    final dots = List.generate(7, (i) {
+      final day = today.subtract(Duration(days: 6 - i));
+      final done = allPlans.any((p) {
+        if (p.completedAt == null) return false;
+        final d = DateTime(p.completedAt!.year, p.completedAt!.month, p.completedAt!.day);
+        return d == day;
+      });
+      return (label: days[day.weekday - 1], done: done, isToday: day == today);
+    });
+
+    final doneCount = dots.where((d) => d.done).length;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundElevated,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderCard),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This Week  •  $doneCount/7 days',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: dots.asMap().entries.map((e) {
+                    final d = e.value;
+                    return Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: d.done
+                                ? const LinearGradient(
+                                    colors: [AppColors.gradientGreenStart,
+                                             AppColors.gradientGreenEnd],
+                                  )
+                                : null,
+                            color: d.done ? null : AppColors.backgroundDark,
+                            border: Border.all(
+                              color: d.isToday
+                                  ? AppColors.accentAmber
+                                  : d.done
+                                      ? AppColors.accentGreen
+                                      : AppColors.borderCard,
+                              width: d.isToday ? 2 : 1,
+                            ),
+                            boxShadow: d.done
+                                ? [const BoxShadow(
+                                    color: AppColors.glowGreen, blurRadius: 8)]
+                                : [],
+                          ),
+                          child: Center(
+                            child: d.done
+                                ? const Icon(Icons.check_rounded,
+                                    size: 14, color: Colors.white)
+                                : Text(
+                                    d.label,
+                                    style: AppTextStyles.labelSmall.copyWith(
+                                      fontSize: 9,
+                                      color: d.isToday
+                                          ? AppColors.accentAmber
+                                          : AppColors.textHint,
+                                      fontWeight: d.isToday
+                                          ? FontWeight.w800
+                                          : FontWeight.w500,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

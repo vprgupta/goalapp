@@ -22,8 +22,9 @@ class StatsScreen extends ConsumerWidget {
     final goal = ref.watch(activeGoalProvider);
     if (goal == null) return const SizedBox.shrink();
 
-    final topics = ref.read(topicsProvider(goal.id));
-    final dayPlans = ref.read(dayPlansProvider(goal.id));
+    final topics = ref.watch(topicsProvider(goal.id));
+    final dayPlans = ref.watch(dayPlansProvider(goal.id));
+
 
     final completedDays = dayPlans.where((d) => d.isCompleted).length;
     final learnedTopics = topics.where((t) => t.isLearned).length;

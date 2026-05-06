@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,6 +19,7 @@ class TaskCardWidget extends StatefulWidget {
   final bool isCompleted;
   final bool isExpanded;
   final bool isExpanding;
+  final bool isBoss; // G4: milestone badge + gold glow
 
   const TaskCardWidget({
     super.key,
@@ -31,6 +33,7 @@ class TaskCardWidget extends StatefulWidget {
     required this.isCompleted,
     this.isExpanded = true,
     this.isExpanding = false,
+    this.isBoss = false,
   });
 
   @override
@@ -40,6 +43,7 @@ class TaskCardWidget extends StatefulWidget {
 class _TaskCardWidgetState extends State<TaskCardWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _checkController;
+  final GlobalKey _checkKey = GlobalKey(); // G1: XP float anchor
   bool _tapped = false;
 
   @override
@@ -82,13 +86,33 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   void _onCompleteAction({bool? recallResult}) {
     if (_tapped) return;
     setState(() => _tapped = true);
+    HapticFeedback.lightImpact(); // G1: haptic
     _checkController.forward().then((_) {
       if (mounted) {
+        _showXpFloat(context); // G1: floating XP badge
         Future.delayed(const Duration(milliseconds: 200), () {
           widget.onComplete(recallCorrect: recallResult);
         });
       }
     });
+  }
+
+  // G1: Show floating "+XP ⚡" label above the checkbox
+  void _showXpFloat(BuildContext context) {
+    final xp = widget.isBoss ? 25 : widget.task.isRevise ? 5 : 10;
+    final renderBox =
+        _checkKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final pos = renderBox.localToGlobal(Offset.zero);
+    OverlayEntry? entry;
+    entry = OverlayEntry(
+      builder: (_) => _XpFloatBadge(
+        xp: xp,
+        position: pos,
+        onDone: () => entry?.remove(),
+      ),
+    );
+    Overlay.of(context).insert(entry);
   }
 
   Future<void> _launchYouTube() async {
@@ -119,6 +143,15 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   Widget _buildReviseCard() {
     const reviseColor = Color(0xFF9B8FFF);
     const reviseBg = Color(0xFF13102A);
+    // G4: Boss tasks get a gold glow border
+    final borderColor = widget.isCompleted
+        ? AppColors.borderSubtle
+        : widget.isBoss
+            ? AppColors.accentAmber.withOpacity(0.6)
+            : reviseColor.withOpacity(0.4);
+    final bossShadow = widget.isBoss && !widget.isCompleted
+        ? [const BoxShadow(color: AppColors.glowAmber, blurRadius: 16)]
+        : <BoxShadow>[];
 
     return AnimatedOpacity(
       opacity: widget.isCompleted ? 0.4 : 1.0,
@@ -128,11 +161,8 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
         decoration: BoxDecoration(
           color: widget.isCompleted ? AppColors.backgroundCard : reviseBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: widget.isCompleted
-                ? AppColors.borderSubtle
-                : reviseColor.withOpacity(0.4),
-          ),
+          border: Border.all(color: borderColor, width: widget.isBoss ? 1.5 : 1.0),
+          boxShadow: bossShadow,
         ),
         child: Material(
           color: Colors.transparent,
@@ -148,6 +178,23 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
                       // Header row
                       Row(
                         children: [
+                          // G4: MILESTONE badge for boss tasks
+                          if (widget.isBoss) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [
+                                  Color(0xFFFFD700), Color(0xFFFF9500)
+                                ]),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('⚡ MILESTONE', style: TextStyle(
+                                fontFamily: 'Outfit', fontSize: 8,
+                                fontWeight: FontWeight.w900, color: Colors.black,
+                              )),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                             decoration: BoxDecoration(
@@ -265,6 +312,15 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
   // ── LEARN card ───────────────────────────────────────────────────────────────
   Widget _buildLearnCard() {
     const learnColor = AppColors.learnColor;
+    // G4: Boss tasks get amber glow border
+    final borderColor = widget.isCompleted
+        ? AppColors.borderSubtle
+        : widget.isBoss
+            ? AppColors.accentAmber.withOpacity(0.55)
+            : AppColors.borderCard;
+    final bossShadow = widget.isBoss && !widget.isCompleted
+        ? [const BoxShadow(color: AppColors.glowAmber, blurRadius: 18)]
+        : <BoxShadow>[];
 
     return AnimatedOpacity(
       opacity: widget.isCompleted ? 0.45 : 1.0,
@@ -272,11 +328,10 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
       child: Container(
         margin: const EdgeInsets.fromLTRB(4, 0, 4, 14),
         decoration: BoxDecoration(
-          color: widget.isCompleted ? AppColors.backgroundCard : AppColors.backgroundCard,
+          color: AppColors.backgroundCard,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: widget.isCompleted ? AppColors.borderSubtle : AppColors.borderCard,
-          ),
+          border: Border.all(color: borderColor, width: widget.isBoss ? 1.5 : 1.0),
+          boxShadow: bossShadow,
         ),
         child: Material(
           color: Colors.transparent,
@@ -290,7 +345,29 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(right: 48),
-                    child: _buildContent('LEARN', learnColor),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // G4: MILESTONE badge for boss topics
+                        if (widget.isBoss) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            margin: const EdgeInsets.only(bottom: 6),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [
+                                Color(0xFFFFD700), Color(0xFFFF9500)
+                              ]),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text('⚡ MILESTONE', style: TextStyle(
+                              fontFamily: 'Outfit', fontSize: 8,
+                              fontWeight: FontWeight.w900, color: Colors.black,
+                            )),
+                          ),
+                        ],
+                        _buildContent('LEARN', learnColor),
+                      ],
+                    ),
                   ),
                   Positioned(
                     top: 0,
@@ -445,7 +522,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
     final hubButton = GestureDetector(
       onTap: () => context.push('/topic-resources/${widget.task.topicId}'),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -460,20 +537,18 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
           mainAxisSize: MainAxisSize.min,
           children: [
             const ExcludeSemantics(
-              child: Icon(Icons.hub_rounded, size: 14, color: AppColors.accentAmber),
+              child: Icon(Icons.menu_book_rounded, size: 14, color: AppColors.accentAmber),
             ),
             const SizedBox(width: 8),
+            // G7: Show XP reward and time estimate so the tap feels like a transaction
             Text(
-              'Explore Learning Hub',
+              'Start Learning  →  +10 XP · ~${widget.task.estimatedMinutes}min',
               style: AppTextStyles.labelSmall.copyWith(
                 color: AppColors.accentAmber,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.3,
               ),
             ),
-            const SizedBox(width: 6),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 10, color: AppColors.accentAmber),
           ],
         ),
       ),
@@ -641,6 +716,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
 
   Widget _buildCheckbox(Color typeColor) {
     return GestureDetector(
+      key: _checkKey, // G1: anchor for XP float position
       onTap: widget.isCompleted ? null : () => _onCompleteAction(),
       child: AnimatedBuilder(
         animation: _checkController,
@@ -683,6 +759,85 @@ class _TaskCardWidgetState extends State<TaskCardWidget>
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ── G1: Floating XP badge overlay ────────────────────────────────────────────
+class _XpFloatBadge extends StatefulWidget {
+  final int xp;
+  final Offset position;
+  final VoidCallback onDone;
+  const _XpFloatBadge(
+      {required this.xp, required this.position, required this.onDone});
+  @override
+  State<_XpFloatBadge> createState() => _XpFloatBadgeState();
+}
+
+class _XpFloatBadgeState extends State<_XpFloatBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+  late final Animation<double> _dy;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900));
+    _opacity = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 15),
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 55),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 30),
+    ]).animate(_ctrl);
+    _dy = Tween(begin: 0.0, end: -64.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _ctrl.forward().then((_) => widget.onDone());
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Positioned(
+        left: widget.position.dx - 24,
+        top: widget.position.dy + _dy.value,
+        child: Opacity(
+          opacity: _opacity.value,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFB197FC), Color(0xFF7C3AED)],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(color: AppColors.glowPurple, blurRadius: 12)
+                ],
+              ),
+              child: Text(
+                '+${widget.xp} XP ⚡',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  fontFamily: 'Outfit',
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

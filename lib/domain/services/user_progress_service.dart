@@ -141,14 +141,11 @@ class UserProgressService {
   // ── Catch-Up Detection ────────────────────────────────────────────────────
 
   /// Checks if the user has incomplete tasks from past days.
-  /// This is light — actual rescheduling is done in GoalRepository.
-  static bool hasPendingCatchUp(List<dynamic> allDayPlans) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    // dayPlans have a createdAt or a date field — check if any past ones are incomplete
+  /// [goalCurrentDay] is `GoalModel.currentDay` — passed in by the caller.
+  static bool hasPendingCatchUp(List<dynamic> allDayPlans, {required int goalCurrentDay}) {
     for (final plan in allDayPlans) {
       try {
-        if (!(plan.isCompleted as bool) && plan.dayNumber < plan.currentDay) {
+        if (!(plan.isCompleted as bool) && (plan.dayNumber as int) < goalCurrentDay) {
           return true;
         }
       } catch (_) {}
